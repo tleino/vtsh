@@ -1,0 +1,30 @@
+#!/bin/sh
+
+if [ $# -lt 2 ] ; then
+	echo "usage: $0 TYPE NAME"
+	exit 1
+fi
+
+TYPE=$1
+NAME=$2
+CAP_NAME=$(echo $NAME | tr [a-z] [A-Z])
+
+if [ "${TYPE}" == "header" ] ; then
+	echo "/* Generated on $(date) using '$(basename $0)' */"
+	echo "#ifndef ${CAP_NAME}_NAMES_H"
+	echo "#define ${CAP_NAME}_NAMES_H"
+	echo "enum $NAME {"
+	while read ID CONTENT ; do
+		echo -e "\t${CAP_NAME}_${ID},"
+	done
+	echo -e "\tNUM_${CAP_NAME}"
+	echo "};"
+	echo "#endif"
+else
+	echo "/* Generated on $(date) using '$(basename $0)' */"
+	echo "static const char *${NAME}name[] = {"
+	while read ID CONTENT ; do
+		echo -e "\t\"${CONTENT}\","
+	done
+	echo "};"
+fi

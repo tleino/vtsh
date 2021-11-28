@@ -1,0 +1,83 @@
+SHELL = /bin/sh
+CFLAGS = -g -Wall -std=c99 @PKGS_CFLAGS@ @SYSTEM_CFLAGS@
+LDFLAGS = @PKGS_LDFLAGS@ @SYSTEM_LDFLAGS@
+
+prefix = @prefix@
+exec_prefix = $(prefix)
+bindir = $(exec_prefix)/bin
+libdir = $(exec_prefix)/lib
+datarootdir = $(prefix)/share
+mandir = $(datarootdir)/man
+
+INSTALL ?= install
+INSTALLFLAGS ?=
+
+SRCS=\
+	vbox.c \
+	statbar.c \
+	widget.c \
+	pty.c \
+	dpy.c \
+	ptylist.c \
+	buffer.c \
+	util.c \
+	event.c \
+	xevent.c \
+	font.c \
+	color.c \
+	editor.c \
+	main.c
+PROG=vtsh
+
+OBJS=$(SRCS:.c=.o)
+
+all: fontnames.c fontnames.h colornames.c colornames.h $(PROG)
+
+fontnames.c: mkenum font.enums
+	@echo $@
+	@./mkenum impl font <font.enums >$@
+fontnames.h: mkenum font.enums
+	@echo $@
+	@./mkenum header font <font.enums >$@
+
+colornames.c: mkenum color.enums
+	@echo $@
+	@./mkenum impl color <color.enums >$@
+colornames.h: mkenum color.enums
+	@echo $@
+	@./mkenum header color <color.enums >$@
+
+deps:
+	@echo "update: Makefile"
+	@sed -i '/^# Dependencies/,/^# End dependencies/d' Makefile
+	@echo "# Dependencies (generated on $$(date))" >>Makefile
+	@for a in $(SRCS) ; \
+		do \
+			$(CC) $(CFLAGS) -MM -MT \
+				$$(echo $$a | cut -d. -f1).o $$a \
+				>>Makefile ; \
+		done >>Makefile
+	@echo "# End dependencies" >>Makefile
+
+$(PROG): $(OBJS)
+	@$(CC) -o$@ $(OBJS) $(LDFLAGS)
+	@echo $@
+
+.c.o:
+	@$(CC) $(CFLAGS) -c $<
+	@echo $@
+
+clean:
+	rm -f $(OBJS) $(PROG)
+	rm -f fontnames.c fontnames.h colornames.c colornames.h
+
+install: $(PROG)
+	if [ ! -x $(DESTDIR)$(bindir) ] ; then \
+		mkdir -p $(DESTDIR)$(bindir) ; fi
+	$(INSTALL) $(INSTALLFLAGS) $(PROG) $(DESTDIR)$(bindir)
+
+uninstall:
+	if [ -e $(DESTDIR)$(bindir)/$(PROG) ] ; then \
+		rm $(DESTDIR)$(bindir)/$(PROG) ; fi
+
+.PHONY: deps

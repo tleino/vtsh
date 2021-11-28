@@ -25,10 +25,10 @@ as mutt(1) and a simpler one such as mail(1) or nail(1) can be used instead;
 
 * there is no longer need for a separate editor, but e.g. ed(1) or even
 cat(1) works fine;
-* there is no longer need for a separate pager such as more(1) or less(1).
+* there is no longer need for a separate pager such as more(1) or less(1);
 * there is no longer need for having cursor addressable text user
-interfaces in standard I/O programs but they can be kept plain and simple.
-This means there is no longer need for ncurses(3), terminfo(5), and all that.
+interfaces in standard I/O programs but they can be kept plain and simple,
+this means there is no longer need for ncurses(3), terminfo(5), and all that;
 * standard I/O programs get readline(3) like line editing functionality
 and paging for free, but not only that, they also get full screen
 editing support, so that e.g. ed(1) becomes an editor with full screen
@@ -42,28 +42,42 @@ reimplement cursor addressable user interfaces*, and as it does that, the
 ## TODO
 
 * Add standard features like basic Emacs bindings to the editor
-  (it is very barebones at the moment)
-* Bring the features from https://github.com/tleino/iosplit to the editor
-  such as overwriting previous command's output in an interactive session
-  and launching new commands from a previous command's output
+  (it is very barebones at the moment).
+* Bring the features from [iosplit](https://github.com/tleino/iosplit)
+  to the editor such as overwriting previous command's output in an
+  interactive session and launching new commands from a previous
+  command's output.
 * Add support for e.g. '<file' to the command bar, so that files can be
-  edited and saved with ease
+  edited and saved with ease.
 * Add support for some essential state such as current working directory
-  that is necessary when not using an interactive shell session
+  that is necessary when not using an interactive shell session.
 
 ## Default key bindings
 
-* **Alt+Up** Focus buffer above
-* **Alt+Down** Focus buffer below
-* **Alt+Backspace** Delete buffer + focus buffer above
-* **Alt+Insert** Add new buffer + focus it + edit its command
-* **Up** Move cursor up
-* **Down** Move cursor down
-* **Left** Move cursor left
-* **Right** Move cursor right
-* **Enter** Add line or execute command / send stdin
+* **Alt+Up** Focus buffer above.
+* **Alt+Down** Focus buffer below.
+* **Alt+Backspace** Delete buffer + focus buffer above.
+* **Alt+Insert** Add new buffer + focus it + edit its command.
+* **Up** Move cursor up.
+* **Down** Move cursor down.
+* **Left** Move cursor left.
+* **Right** Move cursor right.
+* **Enter** Add line or execute command / send stdin.
 
-## Build
+## Dependencies
+
+* Unix-like POSIX-compliant environment with X Window System
+
+The target is that it works on OpenBSD base system without requiring
+additional packages. The OpenBSD base system has a good balance of a
+a standards compliant minimum installation that has just enough stuff
+installed so that programs like this can be compiled without needing
+to download external dependencies.
+
+When compiling for other systems, you may need to install some random
+dependencies such as C compiler and standard header files.
+
+## Build and install to home directory
 
 	$ ./configure ~
 	$ make
@@ -74,14 +88,14 @@ reimplement cursor addressable user interfaces*, and as it does that, the
 * vtsh(1) is similar to the same author's cocovt(1) but can be used
 standalone without support from the special cocowm(1) window manager.
 It is also similar to iosplit(1) but that one relies on ncurses(3).
-    * See https://github.com/tleino/cocowm
-    * See https://github.com/tleino/cocovt
-    * See https://github.com/tleino/iosplit
+    * See [cocowm](https://github.com/tleino/cocowm).
+    * See [cocovt](https://github.com/tleino/cocovt).
+    * See [iosplit](https://github.com/tleino/iosplit).
 * vtsh(1) is very similar to acme(1), except that vtsh(1)
     * supports interactive sessions well, so well that it could be even used
-      as a "MUD client" (in acme(1) the dislike for interactive sessions is
-      more visible);
+      as a client to text-based Multi User Dungeons (in acme(1) the dislike
+      for interactive sessions is more visible);
     * relies on window manager for getting multiple columns.
 * xd(1) is a proof-of-concept implementation of the Gemini "Small Internet"
   protocol that works especially well from a vtsh(1)-like interface
-    * See https://github.com/tleino/xd
+    * See [xd](https://github.com/tleino/xd).

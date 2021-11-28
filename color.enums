@@ -1,0 +1,15 @@
+TEXT_BG           black
+TEXT_FG           white
+TEXT_CURSOR       red
+TEXT_OUTPUT_CURSOR green
+TEXT_LINENO       gray
+TEXT_BOTTOM_ROW   green
+TITLE_BG_NORMAL   gray
+TITLE_BG_FOCUS    cornflower blue
+TITLE_FG_NORMAL   white
+MENU_FG_NORMAL    white
+MENU_FG_FOCUS     purple
+MENU_FG_HIGHLIGHT blue
+FLAGS             blue
+FOCUS_BORDER      red
+NORMAL_BORDER     blue

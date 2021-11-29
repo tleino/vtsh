@@ -41,6 +41,17 @@ typedef void (*WidgetGeometry)(void *);
 #define WIDGET_PREFER_WIDTH(_x) \
 	WIDGET((_x))->prefer_size[WIDTH_AXIS]
 
+#define WIDTH(_x) (_x)->size[WIDTH_AXIS]
+#define HEIGHT(_x) (_x)->size[HEIGHT_AXIS]
+#define POSX(_x) (_x)->pos[WIDTH_AXIS]
+#define POSY(_x) (_x)->pos[HEIGHT_AXIS]
+#define OLD_WIDTH(_x) (_x)->old_size[WIDTH_AXIS]
+#define OLD_HEIGHT(_x) (_x)->old_size[HEIGHT_AXIS]
+#define OLD_POSX(_x) (_x)->old_pos[WIDTH_AXIS]
+#define OLD_POSY(_x) (_x)->old_pos[HEIGHT_AXIS]
+#define PREFER_WIDTH(_x) (_x)->size[WIDTH_AXIS]
+#define PREFER_HEIGHT(_x) (_x)->size[HEIGHT_AXIS]
+
 struct widget {
 	Window window;
 
@@ -87,8 +98,6 @@ struct widget {
 
 	long event_mask;
 };
-
-#define WIDGET_WINDOW(_x) (_x)->window
 
 struct widget	*widget_create(const char *, struct widget *);
 struct widget	*widget_create_windowless(const char *, struct widget *);

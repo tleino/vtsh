@@ -125,15 +125,13 @@ layout_update_geometry(void *udata)
 		for (i = 0; i < NCHILDREN(layout); i++) {
 			if (!CHILD(layout, i)->visible)
 				continue;
-			d = MAX(
-			    (CHILD(layout, i)->prefer_size[axis] - sides[i]),
-			    0);
+			d = MAX((CHILD(layout, i)->prefer_size[axis] -
+			    sides[i]), 0);
 			if (d > 0) {
 				add = MIN(equal_surplus, d);
 				sides[i] += add;
 				surplus -= add;
-				d = MAX(
-				    (CHILD(layout, i)->prefer_size[axis] -
+				d = MAX((CHILD(layout, i)->prefer_size[axis] -
 				    sides[i]), 0);
 				if (d == 0)
 					n_need--;
@@ -149,54 +147,39 @@ layout_update_geometry(void *udata)
 
 		CHILD(layout, i)->has_managed_geometry = 1;
 
-		if (axis == HEIGHT_AXIS) {
-			CHILD(layout, i)->pos[WIDTH_AXIS] = 0;
-			CHILD(layout, i)->pos[HEIGHT_AXIS] = offset;
-			CHILD(layout, i)->size[WIDTH_AXIS] =
-			    WIDGET(layout)->size[WIDTH_AXIS];
-			CHILD(layout, i)->size[HEIGHT_AXIS] = sides[i];
-		} else {
-			CHILD(layout, i)->pos[WIDTH_AXIS] = offset;
-			CHILD(layout, i)->pos[HEIGHT_AXIS] = 0;
-			CHILD(layout, i)->size[WIDTH_AXIS] = sides[i];
-			CHILD(layout, i)->size[HEIGHT_AXIS] =
-			    WIDGET(layout)->size[HEIGHT_AXIS];
-		}
+		CHILD(layout, i)->pos[axis] = offset;
+		CHILD(layout, i)->pos[!axis] = 0;
+		CHILD(layout, i)->size[axis] = sides[i];
+		CHILD(layout, i)->size[!axis] = WIDGET(layout)->size[!axis];
 
 		if (CHILD(layout, i)->parent->window == 0) {
-			CHILD(layout, i)->pos[WIDTH_AXIS] +=
-			    CHILD(layout, i)->parent->pos[WIDTH_AXIS];
-			CHILD(layout, i)->pos[HEIGHT_AXIS] +=
-			    CHILD(layout, i)->parent->pos[HEIGHT_AXIS];
+			POSX(CHILD(layout, i)) +=
+			    POSX(CHILD(layout, i)->parent);
+			POSY(CHILD(layout, i)) +=
+			    POSY(CHILD(layout, i)->parent);
 		}
 
 		mask = 0;
-		if (CHILD(layout, i)->pos[WIDTH_AXIS] !=
-		    CHILD(layout, i)->old_pos[WIDTH_AXIS]) {
+		if (POSX(CHILD(layout, i)) != OLD_POSX(CHILD(layout, i))) {
 			mask |= CWX;
-			changes.x = CHILD(layout, i)->pos[WIDTH_AXIS];
+			changes.x = POSX(CHILD(layout, i));
 		}
-		if (CHILD(layout, i)->pos[HEIGHT_AXIS] !=
-		    CHILD(layout, i)->old_pos[HEIGHT_AXIS]) {
+		if (POSY(CHILD(layout, i)) != OLD_POSY(CHILD(layout, i))) {
 			mask |= CWY;
-			changes.y = CHILD(layout, i)->pos[HEIGHT_AXIS];
+			changes.y = POSY(CHILD(layout, i));
 		}
-		if (CHILD(layout, i)->size[WIDTH_AXIS] !=
-		    CHILD(layout, i)->old_size[WIDTH_AXIS]) {
+		if (WIDTH(CHILD(layout, i)) != OLD_WIDTH(CHILD(layout, i))) {
 			mask |= CWWidth;
-			changes.width = CHILD(layout, i)->size[WIDTH_AXIS];
+			changes.width = WIDTH(CHILD(layout, i));
 		}
-		if (CHILD(layout, i)->size[HEIGHT_AXIS] !=
-		    CHILD(layout, i)->old_size[HEIGHT_AXIS]) {
+		if (HEIGHT(CHILD(layout, i)) != OLD_HEIGHT(CHILD(layout, i))) {
 			mask |= CWHeight;
-			changes.height = CHILD(layout, i)->size[HEIGHT_AXIS];
+			changes.height = HEIGHT(CHILD(layout, i));
 		}
 
-		if (CHILD(layout, i)->window != 0)
-			if (mask > 0) {
-				XConfigureWindow(DPY(dpy),
+		if (CHILD(layout, i)->window != 0 && mask > 0)
+			XConfigureWindow(DPY(dpy),
 				    CHILD(layout, i)->window, mask, &changes);
-			}
 	}
 	XFlush(DPY(dpy));
 }

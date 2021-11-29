@@ -22,6 +22,8 @@
 #include "color.h"
 #include "event.h"
 #include "statbar.h"
+#include "layout.h"
+#include "widget.h"
 
 #ifdef HAVE_PTY_H
 #include <pty.h>
@@ -45,6 +47,8 @@ struct pty {
 
 	pid_t pid;
 	int ptyfd;
+
+	struct layout *hbox;
 
 	struct buffer *cmd_buffer;
 	struct cursor *cmd_cursor;
@@ -87,6 +91,8 @@ pty_create(struct dpy *dpy, struct widget *parent)
 	pty->parent = parent;
 	pty->ptyfd = -1;
 
+	pty->hbox = layout_create_hbox("hbox", parent);
+
 	if (pty_create_cmd(pty) == -1) {
 		warn("pty_create_cmd failed");
 		goto fail;
@@ -96,7 +102,8 @@ pty_create(struct dpy *dpy, struct widget *parent)
 		goto fail;
 	}
 
-	if ((pty->statbar = statbar_create("statbar", parent)) == NULL) {
+	if ((pty->statbar = statbar_create("statbar", WIDGET(pty->hbox)))
+	    == NULL) {
 		warn("statbar failed");
 		goto fail;
 	}
@@ -252,7 +259,7 @@ pty_create_cmd(struct pty *pty)
 	if ((pty->cmd_editor = editor_create(pty->dpy,
 	    pty->cmd_cursor,
 	    pty_submit_command, pty, COLOR_TITLE_BG_NORMAL, 1,
-	    "cmd_editor", pty->parent)) == NULL)
+	    "cmd_editor", WIDGET(pty->hbox))) == NULL)
 		return -1;
 
 	return 0;

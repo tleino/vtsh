@@ -30,8 +30,16 @@ typedef void (*WidgetGeometry)(void *);
 #define NCHILDREN(_x) WIDGET((_x))->nchildren
 #define CHILD(_x, _y) WIDGET((_x))->children[(_y)]
 
-#define WIDGET_HEIGHT(_x) WIDGET((_x))->widget->size[1]
-#define WIDGET_WIDTH(_x) WIDGET((_x))->widget->size[0]
+#define WIDTH_AXIS 0
+#define HEIGHT_AXIS 1
+
+#define WIDGET_HEIGHT(_x) WIDGET((_x))->size[HEIGHT_AXIS]
+#define WIDGET_WIDTH(_x) WIDGET((_x))->size[WIDTH_AXIS]
+
+#define WIDGET_PREFER_HEIGHT(_x) \
+	WIDGET((_x))->prefer_size[HEIGHT_AXIS]
+#define WIDGET_PREFER_WIDTH(_x) \
+	WIDGET((_x))->prefer_size[WIDTH_AXIS]
 
 struct widget {
 	Window window;
@@ -62,27 +70,18 @@ struct widget {
 	/*
 	 * Actual geometry of the widget.
 	 */
-	int width;
-	int height;
-	int x;
-	int y;
-
-	int old_width;
-	int old_height;
-	int old_x;
-	int old_y;
-
-	/* TODO: Use these instead of the above. */
 	int size[2];
 	int pos[2];
 
-	int has_managed_geometry;
+	int old_size[2];
+	int old_pos[2];
 
 	/*
 	 * 'prefer_' are hints for layout management.
 	 */
-	int prefer_width;
-	int prefer_height;
+	int prefer_size[2];
+
+	int has_managed_geometry;
 
 	int visible;
 

@@ -15,16 +15,24 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef VBOX_H
-#define VBOX_H
+#ifndef LAYOUT_H
+#define LAYOUT_H
 
 struct widget;
 
-struct vbox {
+typedef enum LayoutType {
+	LAYOUT_TYPE_VBOX,
+	LAYOUT_TYPE_HBOX,
+	NUM_LAYOUT_TYPE
+} LayoutType;
+
+struct layout {
 	struct widget *widget;
+	LayoutType type;
 };
 
-struct vbox	*vbox_create(const char *, struct widget *);
-void		 vbox_free(struct vbox *);
+struct layout	*layout_create_vbox(const char *, struct widget *);
+struct layout	*layout_create_hbox(const char *, struct widget *);
+void		 layout_free(struct layout *);
 
 #endif

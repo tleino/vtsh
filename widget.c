@@ -76,16 +76,20 @@ widget_call_geometry(struct widget *widget)
 	extern struct dpy *dpy;
 
 	if (widget->parent != NULL) {
-		widget->old_width = widget->width;
-		widget->old_height = widget->height;
-		widget->old_x = widget->x;
-		widget->old_y = widget->y;
+		widget->old_size[WIDTH_AXIS] = widget->size[WIDTH_AXIS];
+		widget->old_size[HEIGHT_AXIS] = widget->size[HEIGHT_AXIS];
+		widget->old_pos[WIDTH_AXIS] = widget->pos[WIDTH_AXIS];
+		widget->old_pos[HEIGHT_AXIS] = widget->pos[HEIGHT_AXIS];
 
 		if (!widget->has_managed_geometry) {
-			widget->width = widget->parent->width;
-			widget->height = widget->parent->height;
-			widget->x = widget->parent->x;
-			widget->y = widget->parent->y;
+			widget->size[WIDTH_AXIS] =
+			    widget->parent->size[WIDTH_AXIS];
+			widget->size[HEIGHT_AXIS] =
+			    widget->parent->size[HEIGHT_AXIS];
+			widget->pos[WIDTH_AXIS] =
+			    widget->parent->pos[WIDTH_AXIS];
+			widget->pos[HEIGHT_AXIS] =
+			    widget->parent->pos[HEIGHT_AXIS];
 		}
 	}
 
@@ -102,12 +106,13 @@ widget_call_geometry(struct widget *widget)
 	 * 'width'.
 	 */
 	if (widget->window != 0 && widget->parent != NULL &&
-	    (widget->old_width != widget->width ||
-	    widget->old_height != widget->height ||
-	    widget->old_x != widget->x ||
-	    widget->old_y != widget->y)) {
-		XMoveResizeWindow(DPY(dpy), widget->window, widget->x,
-		    widget->y, widget->width, widget->height);
+	    (widget->old_size[WIDTH_AXIS] != widget->size[WIDTH_AXIS] ||
+	    widget->old_size[HEIGHT_AXIS] != widget->size[HEIGHT_AXIS] ||
+	    widget->old_pos[WIDTH_AXIS] != widget->pos[WIDTH_AXIS] ||
+	    widget->old_pos[HEIGHT_AXIS] != widget->pos[HEIGHT_AXIS])) {
+		XMoveResizeWindow(DPY(dpy), widget->window,
+		    widget->pos[WIDTH_AXIS], widget->pos[HEIGHT_AXIS],
+		    widget->size[WIDTH_AXIS], widget->size[HEIGHT_AXIS]);
 	}
 
 	widget->has_managed_geometry = 0;
@@ -186,8 +191,8 @@ widget_resize(XConfigureEvent *e, void *udata)
 {
 	struct widget *widget = udata;
 
-	widget->width = e->width;
-	widget->height = e->height;
+	widget->size[WIDTH_AXIS] = e->width;
+	widget->size[HEIGHT_AXIS] = e->height;
 
 	widget_call_geometry(widget);
 }
@@ -410,15 +415,15 @@ _widget_create(int windowless, const char *name, struct widget *parent)
 	}
 
 	if (parent != NULL) {
-		widget->x = parent->x;
-		widget->y = parent->y;
-		widget->width = parent->width;
-		widget->height = parent->height;
+		widget->pos[WIDTH_AXIS] = parent->pos[WIDTH_AXIS];
+		widget->pos[HEIGHT_AXIS] = parent->pos[HEIGHT_AXIS];
+		widget->size[WIDTH_AXIS] = parent->size[WIDTH_AXIS];
+		widget->size[HEIGHT_AXIS] = parent->size[HEIGHT_AXIS];
 	} else {
-		widget->x = 0;
-		widget->y = 0;
-		widget->width = 640;
-		widget->height = 480;
+		widget->pos[WIDTH_AXIS] = 0;
+		widget->pos[HEIGHT_AXIS] = 0;
+		widget->size[WIDTH_AXIS] = 640;
+		widget->size[HEIGHT_AXIS] = 480;
 	}
 
 	if (windowless)
@@ -430,7 +435,8 @@ _widget_create(int windowless, const char *name, struct widget *parent)
 	v = (CWEventMask | CWBackingStore | CWBackPixel);
 
 	widget->window = XCreateWindow(DPY(dpy), parent_window,
-	    widget->x, widget->y, widget->width, widget->height,
+	    widget->pos[WIDTH_AXIS], widget->pos[HEIGHT_AXIS],
+	    widget->size[WIDTH_AXIS], widget->size[HEIGHT_AXIS],
 	    0, CopyFromParent, InputOutput, CopyFromParent,
 	    v, &a);
 

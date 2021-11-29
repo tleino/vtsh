@@ -13,7 +13,7 @@ INSTALL ?= install
 INSTALLFLAGS ?=
 
 SRCS=\
-	vbox.c \
+	layout.c \
 	statbar.c \
 	widget.c \
 	pty.c \

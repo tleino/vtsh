@@ -55,7 +55,7 @@ editor_update_geometry(void *udata)
 	int rows;
 
 	font_set(FONT_NORMAL);
-	rows = WIDGET(editor)->height / font_height();
+	rows = WIDGET_HEIGHT(editor) / font_height();
 	if (rows <= 0)
 		rows = 1;
 
@@ -96,12 +96,13 @@ editor_max_height(struct editor *editor)
 {
 	font_set(FONT_NORMAL);
 
-	if (editor->max_rows != -1) {
+	if (editor->max_rows != -1)
 		return MIN(
 		    buffer_rows(editor->buffer) * font_height(),
 		    editor->max_rows * font_height());
-	} else {
-		return buffer_rows(editor->buffer) * font_height();
+	else {
+		return MAX(buffer_rows(editor->buffer) * font_height(),
+		    font_height());
 	}
 }
 
@@ -173,7 +174,7 @@ draw_update(
 
 	if (ctx->old_height != editor_max_height(ctx)) {
 		ctx->old_height = editor_max_height(ctx);
-		WIDGET(ctx)->prefer_height = editor_max_height(ctx);
+		WIDGET_PREFER_HEIGHT(ctx) = editor_max_height(ctx);
 		widget_update_geometry(WIDGET(ctx));
 	}
 
@@ -244,7 +245,9 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 	widget_set_geometry_callback(WIDGET(editor), editor_update_geometry,
 	    editor);
 
-	editor->widget->prefer_height = 28 * 1;
+	font_set(FONT_NORMAL);
+	WIDGET_PREFER_HEIGHT(editor) = font_height();
+	WIDGET_PREFER_WIDTH(editor) = 9999;
 
 	editor->buffer = cursor->buffer;
 	editor->cursor = cursor;
@@ -400,11 +403,11 @@ editor_scroll_down(struct editor *editor, size_t steps)
 	/*
 	 * Move previous contents up, draw bottom
 	 */
-	if (steps * font_height() < WIDGET(editor)->height) {
+	if (steps * font_height() < WIDGET_HEIGHT(editor)) {
 		XCopyArea(DPY(editor->dpy), editor->window, editor->window,
 		    editor->gc, 0, steps * font_height(),
-		    WIDGET(editor)->width, WIDGET(editor)->height - (steps * font_height()),
-		    0, 0);
+		    WIDGET_WIDTH(editor), WIDGET_HEIGHT(editor) -
+		    (steps * font_height()), 0, 0);
 		editor_draw(editor, editor->bottom_row - (steps-1),
 		    editor->bottom_row);
 	} else {
@@ -418,10 +421,10 @@ editor_scroll_up(struct editor *editor, size_t steps)
 	/*
 	 * Move previous contents down, draw up
 	 */
-	if (steps * font_height() < WIDGET(editor)->height) {
+	if (steps * font_height() < WIDGET_HEIGHT(editor)) {
 		XCopyArea(DPY(editor->dpy), editor->window, editor->window,
 		    editor->gc, 0, 0,
-		    WIDGET(editor)->width, WIDGET(editor)->height -
+		    WIDGET_WIDTH(editor), WIDGET_HEIGHT(editor) -
 		    (steps * font_height()), 0, steps * font_height());
 		editor_draw(editor, editor->top_row,
 		    editor->top_row + (steps-1));
@@ -470,7 +473,7 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 		y = (i - editor->top_row) * font_height();
 
 		x += font_draw(editor->window, x, y, dst, len);
-		font_clear(editor->window, x, y, WIDGET(editor)->width - x);
+		font_clear(editor->window, x, y, WIDGET_WIDTH(editor) - x);
 	}
 
 	if (editor->ocursor)

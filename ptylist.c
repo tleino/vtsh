@@ -19,7 +19,7 @@
 #include "dpy.h"
 #include "pty.h"
 #include "widget.h"
-#include "vbox.h"
+#include "layout.h"
 
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
@@ -32,7 +32,7 @@ struct ptylist {
 	struct pty *ptys[100];
 	int n_ptys;
 	struct widget *widget;
-	struct vbox *vbox;
+	struct layout *vbox;
 };
 
 static int	ptylist_keypress(XKeyEvent *, void *);
@@ -49,7 +49,8 @@ ptylist_create(const char *name, struct widget *parent)
 	if ((WIDGET(ptylist) = widget_create(name, parent)) == NULL)
 		goto fail;
 
-	if ((ptylist->vbox = vbox_create("vbox", WIDGET(ptylist))) == NULL)
+	if ((ptylist->vbox = layout_create_vbox("vbox", WIDGET(ptylist)))
+	    == NULL)
 		goto fail;
 
 	ptylist->dpy = dpy;

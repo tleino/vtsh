@@ -43,7 +43,9 @@ statbar_create(const char *name, struct widget *parent)
 	if ((WIDGET(statbar) = widget_create(name, parent)) == NULL)
 		goto fail;
 
-	WIDGET(statbar)->prefer_height = 28;
+	font_set(FONT_NORMAL);
+	WIDGET_PREFER_HEIGHT(statbar) = font_height();
+	WIDGET_PREFER_WIDTH(statbar) = parent->size[WIDTH_AXIS] / 4;
 
 	widget_set_draw_callback(WIDGET(statbar), statbar_draw, statbar);
 
@@ -64,22 +66,22 @@ statbar_update_status(struct statbar *statbar, StatbarState state,
 
 	if (pid != 0)
 		snprintf(status, sizeof(status),
-		    "%d lines (PID %d)", lines, pid);
+		    "%dL PID %d", lines, pid);
 	else if (state == STATBAR_STATE_EXITED)
 		snprintf(status, sizeof(status),
-		    "%d lines (exit status %d)", lines, ret);
+		    "%dL exit %d", lines, ret);
 	else if (state == STATBAR_STATE_SIGNALED)
 		snprintf(status, sizeof(status),
-		    "%d lines (killed by signal %d)", lines, ret);
+		    "%dL signal %d", lines, ret);
 	else
 		snprintf(status, sizeof(status),
-		    "%d lines", lines);
+		    "%dL", lines);
 
 	if (statbar->status != NULL)
 		free(statbar->status);
 	statbar->status = strdup(status);
-	statbar_draw(0, 0, WIDGET(statbar)->width, WIDGET(statbar)->height,
-		statbar);
+	statbar_draw(0, 0, WIDGET(statbar)->size[WIDTH_AXIS],
+	    WIDGET(statbar)->size[HEIGHT_AXIS], statbar);
 	XFlush(DPY(dpy));
 }
 
@@ -102,9 +104,10 @@ statbar_draw(int x, int y, int width, int height, void *udata)
 {
 	struct statbar *statbar = udata;
 
-	font_set_fgcolor(COLOR_TEXT_CURSOR);
-	font_set_bgcolor(COLOR_TEXT_BG);
+	font_set_fgcolor(COLOR_FLAGS);
+	font_set_bgcolor(COLOR_TITLE_BG_NORMAL);
 	x = font_draw(WINDOW(statbar), 0, 0, statbar->status,
 		strlen(statbar->status));
-	font_clear(WINDOW(statbar), x, 0, WIDGET(statbar)->width - x);
+	font_clear(WINDOW(statbar), x, 0,
+	    WIDGET(statbar)->size[WIDTH_AXIS] - x);
 }

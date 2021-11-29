@@ -52,9 +52,14 @@ static void
 editor_update_geometry(void *udata)
 {
 	struct editor *editor = udata;
+	int rows;
 
-	editor->bottom_row = editor->top_row +
-	    (WIDGET(editor)->height / font_height()) - 1;
+	font_set(FONT_NORMAL);
+	rows = WIDGET(editor)->height / font_height();
+	if (rows <= 0)
+		rows = 1;
+
+	editor->bottom_row = editor->top_row + rows - 1;
 }
 
 static int
@@ -478,9 +483,6 @@ static void
 editor_expose(int x, int y, int width, int height, void *udata)
 {
 	struct editor *editor = udata;
-
-	editor->bottom_row = editor->top_row +
-	    (WIDGET(editor)->height / font_height()) - 1;
 
 	editor_draw(editor, editor->top_row, editor->bottom_row);
 }

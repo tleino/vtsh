@@ -15,7 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "exvt.h"
+#include "util.h"
 
 #include <stdlib.h>
 #include <assert.h>

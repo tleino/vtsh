@@ -18,6 +18,7 @@
 #include "util.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 /*
@@ -36,8 +37,12 @@ grow_array(void **arr, size_t sz, size_t *max_elem)
 	if (target == 0)
 		target = 64;
 
-	if ((tmp = recallocarray(*arr, *max_elem, target, sz)) == NULL)
+	if ((tmp = realloc(*arr, target * sz)) == NULL)
 		return -1;
+#if 0
+	printf("Clear %d bytes from %d\n", target - *max_elem, *max_elem);
+	memset(&tmp[*max_elem], '\0', target - *max_elem);
+#endif
 
 	*arr = tmp;
 	*max_elem = target;

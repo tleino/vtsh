@@ -32,7 +32,7 @@ main(int argc, char *argv[])
 	struct ptylist *ptylist;
 
 	if ((dpy = dpy_create()) == NULL)
-		err(1, "connecting to X11 server");
+		errx(1, "failed connecting to X11 server");
 
 	if (!setlocale(LC_CTYPE, "en_US.UTF-8") || !XSupportsLocale())
 		errx(1, "no locale support");

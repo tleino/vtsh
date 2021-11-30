@@ -47,7 +47,7 @@ colornames.h: mkenum color.enums
 	@echo $@
 	@./mkenum header color <color.enums >$@
 
-deps:
+deps: fontnames.h colornames.h fontnames.c colornames.c
 	@echo "update: Makefile"
 	@sed -i '/^# Dependencies/,/^# End dependencies/d' Makefile
 	@echo "# Dependencies (generated on $$(date))" >>Makefile

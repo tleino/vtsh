@@ -586,6 +586,7 @@ widget_takefocus(Time t, void *udata)
 	extern struct dpy *dpy;
 
 	XSetInputFocus(DPY(dpy), widget->window, RevertToNone, t);
+	XSync(DPY(dpy), False);
 }
 
 void

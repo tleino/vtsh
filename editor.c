@@ -27,7 +27,7 @@
 #include <stdio.h>
 
 #include <X11/XKBlib.h>
-#include <X11/extensions/XKBrules.h>
+//#include <X11/extensions/XKBrules.h>
 #include <X11/keysymdef.h>
 #include <X11/keysym.h>
 
@@ -302,7 +302,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 {
 	struct editor *vc = udata;
 	KeySym sym;
-	unsigned char ch[4 + 1];
+	char ch[4 + 1];
 	int n;
 
 	sym = XkbKeycodeToKeysym(DPY(vc->dpy), e->keycode, 0,

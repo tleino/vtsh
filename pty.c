@@ -215,8 +215,7 @@ pty_submit_command(const char *s, void *udata)
 	 * We take OpenBSD defaults as the base and make some minor
 	 * adjustments.
 	 */
-	ts.c_lflag = (ICANON | ISIG | IEXTEN | ECHO | ECHOE | ECHOCTL |
-	    PENDIN);
+	ts.c_lflag = (ICANON | ISIG | IEXTEN | ECHO | ECHOE);
 	ts.c_iflag = (IXON | IXANY | IMAXBEL | BRKINT | IGNCR);
 	ts.c_iflag |= IGNCR;
 	ts.c_iflag &= (ICRNL);
@@ -225,7 +224,8 @@ pty_submit_command(const char *s, void *udata)
 	ts.c_cflag = (CREAD | CS8 | HUPCL);
 	ts.c_cc[VMIN] = 1;
 	ts.c_cc[VTIME] = 0;
-	cfsetspeed(&ts, B115200);
+	ts.c_ispeed = B115200;
+	ts.c_ospeed = B115200;
 
 	pty->pid = forkpty(&pty->ptyfd, NULL, &ts, NULL);
 	if (pty->pid < 0)

@@ -20,12 +20,17 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <err.h>
+
+#include <X11/XKBlib.h>
 
 struct dpy *
 dpy_create()
 {
 	char *denv;
 	struct dpy *dpy;
+	int xkbmaj, xkbmin, xkb_op, xkb_event, xkb_error;
 
 	if ((dpy = calloc(1, sizeof(struct dpy))) == NULL)
 		return NULL;
@@ -34,8 +39,10 @@ dpy_create()
 	if (denv == NULL && errno != 0)
 		goto fail;
 
-	if ((dpy->display = XOpenDisplay(denv)) == NULL)
+	if ((dpy->display = XOpenDisplay(denv)) == NULL) {
+		warnx("failed connecting to display");
 		goto fail;
+	}
 
 	/*
 	 * Prevent X11 connection being copied to child processes.
@@ -45,6 +52,19 @@ dpy_create()
 
 	dpy->screen = DefaultScreen(dpy->display);
 	dpy->root = DefaultRootWindow(dpy->display);
+
+	/*
+	 * We use XKB extension because XKeycodeToKeysym is deprecated,
+	 * even though there would be no big harm.
+	 */
+	xkbmaj = XkbMajorVersion;
+	xkbmin = XkbMinorVersion;
+	if (XkbLibraryVersion(&xkbmaj, &xkbmin) == False)
+		warnx("trouble with XKB extension; needed %d.%d got %d.%d",
+		    XkbMajorVersion, XkbMinorVersion, xkbmaj, xkbmin);
+	if (XkbQueryExtension(dpy->display, &xkb_op, &xkb_event, &xkb_error,
+	    &xkbmaj, &xkbmin) == False)
+		warnx("trouble with XKB extension");
 
 	return dpy;
 fail:

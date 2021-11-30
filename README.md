@@ -113,6 +113,15 @@ dependencies such as C compiler and standard header files.
 	$ make
 	$ make install
 
+## Customize
+
+* Take a look at
+[color.enums](https://github.com/tleino/vtsh/blob/main/color.enums) and
+[font.enums](https://github.com/tleino/vtsh/blob/main/font.enums), modify
+and recompile.
+
+(xrdb-compatible resources could be added later.)
+
 ## See also
 
 * vtsh(1) is similar to the same author's cocovt(1) but can be used

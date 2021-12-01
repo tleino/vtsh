@@ -36,6 +36,7 @@ struct ptylist {
 };
 
 static int	ptylist_keypress(XKeyEvent *, void *);
+static void	ptylist_add_pty(struct ptylist *);
 
 struct ptylist *
 ptylist_create(const char *name, struct widget *parent)
@@ -58,6 +59,8 @@ ptylist_create(const char *name, struct widget *parent)
 	widget_set_keypress_callback(WIDGET(ptylist), ptylist_keypress,
 	    ptylist);
 
+	ptylist_add_pty(ptylist);
+
 	widget_show(WIDGET(ptylist->vbox));
 	widget_show(WIDGET(ptylist));
 
@@ -75,6 +78,16 @@ ptylist_free(struct ptylist *ptylist)
 	free(ptylist);
 }
 
+static void
+ptylist_add_pty(struct ptylist *ptylist)
+{
+	if ((ptylist->ptys[ptylist->n_ptys] = pty_create(ptylist->dpy,
+	    WIDGET(ptylist->vbox))) == NULL)
+		warn("creating pty");
+	else
+		ptylist->n_ptys++;
+}
+
 static int
 ptylist_keypress(XKeyEvent *xkey, void *udata)
 {
@@ -89,11 +102,7 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 
 	switch (sym) {
 	case XK_Insert:
-		if ((ptylist->ptys[ptylist->n_ptys] = pty_create(ptylist->dpy,
-		    WIDGET(ptylist->vbox))) == NULL)
-			warn("creating pty");
-		else
-			ptylist->n_ptys++;
+		ptylist_add_pty(ptylist);
 		return 1;
 	}
 

@@ -24,6 +24,7 @@
 #include "statbar.h"
 #include "layout.h"
 #include "widget.h"
+#include "label.h"
 
 #ifdef HAVE_PTY_H
 #include <pty.h>
@@ -38,6 +39,7 @@
 #include <string.h>
 #include <err.h>
 #include <termios.h>
+#include <limits.h>
 
 struct editor;
 
@@ -60,6 +62,7 @@ struct pty {
 	struct editor *ts_editor;
 
 	struct statbar *statbar;
+	struct label *cwd;
 };
 
 static int	pty_create_cmd(struct pty *);
@@ -84,6 +87,7 @@ struct pty *
 pty_create(struct dpy *dpy, struct widget *parent)
 {
 	struct pty *pty;
+	char cwd[PATH_MAX];
 
 	if ((pty = calloc(1, sizeof(struct pty))) == NULL)
 		return NULL;
@@ -92,6 +96,14 @@ pty_create(struct dpy *dpy, struct widget *parent)
 	pty->ptyfd = -1;
 
 	pty->hbox = layout_create_hbox("hbox", parent);
+
+	if ((pty->cwd = label_create("cwd", WIDGET(pty->hbox))) == NULL)
+		goto fail;
+
+	if (getcwd(cwd, sizeof(cwd)) != NULL)
+		label_set(pty->cwd, cwd);
+	else
+		warn("getting cwd");
 
 	if (pty_create_cmd(pty) == -1) {
 		warn("pty_create_cmd failed");
@@ -103,10 +115,8 @@ pty_create(struct dpy *dpy, struct widget *parent)
 	}
 
 	if ((pty->statbar = statbar_create("statbar", WIDGET(pty->hbox)))
-	    == NULL) {
-		warn("statbar failed");
+	    == NULL)
 		goto fail;
-	}
 
 	statbar_update_status(pty->statbar, STATBAR_STATE_NOT_STARTED, 0, 0, 0);
 	return pty;

@@ -93,16 +93,29 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 {
 	struct ptylist *ptylist = udata;
 	KeySym sym;
-
-	if (!(xkey->state & Mod1Mask))
-		return 0;
+	struct widget *root;
 
 	sym = XkbKeycodeToKeysym(DPY(ptylist->dpy), xkey->keycode, 0,
 	    (xkey->state & ShiftMask) ? 1 : 0);
 
+	if (!(xkey->state & Mod1Mask) && sym != XK_Escape)
+		return 0;
+
 	switch (sym) {
 	case XK_Insert:
 		ptylist_add_pty(ptylist);
+		return 1;
+	case XK_Escape:
+		root = widget_find_root(WIDGET(ptylist));
+		if (root->level == 1)
+			root->level ^= 1;
+		widget_focus_prev(root->focus, root->level);
+		return 1;
+	case XK_Return:
+		root = widget_find_root(WIDGET(ptylist));
+		if (root->level == 0)
+			root->level ^= 1;
+		widget_focus_next(root->focus, root->level);
 		return 1;
 	}
 

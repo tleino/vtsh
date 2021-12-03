@@ -63,6 +63,7 @@ struct widget {
 
 	struct widget *focus;	/* Only relevant in root widget */
 
+	int level;
 	int has_focus;
 	int can_focus;
 
@@ -108,9 +109,10 @@ void		 widget_hide(struct widget *);
 
 struct widget	*widget_find_parent_with_window(struct widget *);
 struct widget	*widget_find_parent_window(struct widget *);
+struct widget   *widget_find_root(struct widget *);
 
-void		 widget_focus_next(struct widget *);
-void		 widget_focus_prev(struct widget *);
+void		 widget_focus_next(struct widget *, int);
+void		 widget_focus_prev(struct widget *, int);
 void		 widget_focus(struct widget *);
 
 void		 widget_update_geometry(struct widget *);

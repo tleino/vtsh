@@ -308,7 +308,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 	sym = XkbKeycodeToKeysym(DPY(vc->dpy), e->keycode, 0,
 	    (e->state & ShiftMask) ? 1 : 0);
 
-	if (e->state & Mod1Mask)
+	if (e->state & Mod1Mask || sym == XK_Escape)
 		return 0;
 
 	switch (sym) {

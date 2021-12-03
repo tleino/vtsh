@@ -39,7 +39,6 @@ typedef enum FocusDir {
 static int		 widget_find_child(struct widget *, struct widget *);
 static int		 widget_add_child(struct widget *, struct widget *);
 static int		 widget_remove_child(struct widget *, struct widget *);
-static struct widget	*widget_find_root(struct widget *);
 
 static void		 widget_expose(XExposeEvent *, void *);
 static void		 widget_resize(XConfigureEvent *, void *);
@@ -48,9 +47,9 @@ static void		 widget_keypress(XKeyEvent *, void *);
 static int		 widget_root_keypress(XKeyEvent *, void *);
 
 static int		 widget_ensure_focus(struct widget *);
-static void		 widget_focus_dir(struct widget *, FocusDir);
+static void		 widget_focus_dir(struct widget *, FocusDir, int);
 static struct widget	*widget_find_focusable(struct widget *, FocusDir,
-			    int *, struct widget *);
+			    int *, struct widget *, int);
 
 static struct widget	*_widget_create(int, const char *, struct widget *);
 
@@ -139,10 +138,10 @@ widget_root_keypress(XKeyEvent *xkey, void *udata)
 	if (xkey->state & Mod1Mask) {
 		switch (sym) {
 		case XK_Up:
-			widget_focus_prev(widget->focus);
+			widget_focus_prev(widget->focus, widget->level);
 			return 1;
 		case XK_Down:
-			widget_focus_next(widget->focus);
+			widget_focus_next(widget->focus, widget->level);
 			return 1;
 		}
 	}
@@ -230,13 +229,14 @@ widget_focus(struct widget *widget)
 	}
 
 	root->focus = widget;
+	root->level = widget->level;
 	root->focus->has_focus = 1;
 	widget_notify_focus_change(root->focus, 1);
 }
 
 static struct widget *
 widget_find_focusable(struct widget *widget, FocusDir dir, int *has_prev,
-    struct widget *prevfocus)
+    struct widget *prevfocus, int level)
 {
 	int i;
 	struct widget *child;
@@ -244,7 +244,8 @@ widget_find_focusable(struct widget *widget, FocusDir dir, int *has_prev,
 	if (widget->nchildren == 0 && widget->can_focus) {
 		if (widget == prevfocus)
 			*has_prev = 1;
-		else if (*has_prev == 1)
+		else if (*has_prev == 1 &&
+		    (widget->level == level || level == -1))
 			return widget;
 	}
 
@@ -253,7 +254,7 @@ widget_find_focusable(struct widget *widget, FocusDir dir, int *has_prev,
 		for (i = 0; i < widget->nchildren; i++) {
 			child = widget->children[i];
 			child = widget_find_focusable(child, dir,
-			    has_prev, prevfocus);
+			    has_prev, prevfocus, level);
 			if (child != NULL)
 				return child;
 		}
@@ -262,7 +263,7 @@ widget_find_focusable(struct widget *widget, FocusDir dir, int *has_prev,
 		for (i = widget->nchildren - 1; i >= 0; i--) {
 			child = widget->children[i];
 			child = widget_find_focusable(child, dir,
-			    has_prev, prevfocus);
+			    has_prev, prevfocus, level);
 			if (child != NULL)
 				return child;
 
@@ -289,7 +290,7 @@ widget_ensure_focus(struct widget *widget)
 		widget = widget_find_root(widget);
 
 	newfocus = widget_find_focusable(widget, FOCUS_FORWARD, &has_prev,
-	    NULL);
+	    NULL, -1);
 	if (newfocus == NULL)
 		return 0;
 
@@ -298,28 +299,28 @@ widget_ensure_focus(struct widget *widget)
 }
 
 static void
-widget_focus_dir(struct widget *widget, FocusDir dir)
+widget_focus_dir(struct widget *widget, FocusDir dir, int level)
 {
 	struct widget *newfocus, *root;
 	int has_prev = 0;
 
 	root = widget_find_root(widget);
-	newfocus = widget_find_focusable(root, dir, &has_prev, widget);
+	newfocus = widget_find_focusable(root, dir, &has_prev, widget, level);
 	if (newfocus == NULL)
 		return;
 	widget_focus(newfocus);
 }
 
 void
-widget_focus_next(struct widget *widget)
+widget_focus_next(struct widget *widget, int level)
 {
-	widget_focus_dir(widget, FOCUS_FORWARD);
+	widget_focus_dir(widget, FOCUS_FORWARD, level);
 }
 
 void
-widget_focus_prev(struct widget *widget)
+widget_focus_prev(struct widget *widget, int level)
 {
-	widget_focus_dir(widget, FOCUS_BACKWARD);
+	widget_focus_dir(widget, FOCUS_BACKWARD, level);
 }
 
 void
@@ -455,7 +456,7 @@ _widget_create(int windowless, const char *name, struct widget *parent)
 	return widget;
 }
 
-static struct widget *
+struct widget *
 widget_find_root(struct widget *widget)
 {
 	assert(widget != NULL);

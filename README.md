@@ -9,7 +9,8 @@ linear or non-linear fashion. It could also be thought *vtsh* means
 *vertical tabs of shells*.
 
 It also an exercise in taking the Unix philosophy to the extreme
-in the footsteps of e.g. acme(1) editor/user interface for
+in the footsteps of e.g. [acme](http://acme.cat-v.org/)
+editor/user interface for
 programmers that was originally created for the Plan 9 operating
 system and its lesser known philosophical base described in
 [A Minimal Global User Interface](http://doc.cat-v.org/plan_9/1st_edition/help/help.pdf)
@@ -82,10 +83,23 @@ user wishes.
 * Add support for some essential state such as current working directory
   that is necessary when not using an interactive shell session.
 
+## Peculiar keyboard focus system
+
+*vtsh* can be used without mouse, unlike [acme](http://acme.cat-v.org/),
+but *vtsh* has a peculiar way of how it can be used using keyboard:
+* it has a sort of a multi-dimensional focus system, where you can move
+focus using *Alt+Up/Down* which focuses the previous or next buffer
+of the same category and you can change the focus category using *Esc*
+and *Alt+Enter*. For example, if you're on the output buffer, *Esc* leads
+to the command buffers, and if you're on a command buffer, *Alt+Enter*
+leads to the output buffers.
+
 ## Default key bindings
 
-* **Alt+Up** Focus buffer above.
-* **Alt+Down** Focus buffer below.
+* **Alt+Up** Focus buffer above on the same level.
+* **Alt+Down** Focus buffer below on the same level.
+* **Esc** Move focus level up.
+* **Alt+Enter** Move focus level down.
 * **Alt+Backspace** Delete buffer + focus buffer above.
 * **Alt+Insert** Add new buffer + focus it + edit its command.
 * **Up** Move cursor up.
@@ -131,10 +145,11 @@ It is also similar to iosplit(1) but that one relies on ncurses(3).
     * See [cocovt](https://github.com/tleino/cocovt).
     * See [iosplit](https://github.com/tleino/iosplit).
 * vtsh(1) is very similar to acme(1), except that vtsh(1)
-    * supports interactive sessions well, so well that it could be even used
+    * Supports interactive sessions well, so well that it could be even used
       as a client to text-based Multi User Dungeons (in acme(1) the dislike
       for interactive sessions is more visible);
-    * relies on window manager for getting multiple columns.
+    * Relies on window manager for getting multiple columns.
+    * Can be used without mouse.
 * xd(1) is a proof-of-concept [edbrowse](https://github.com/CMB/edbrowse)-like
 implementation for using e.g. Gemini "Small Internet" protocol that could
 work very well with *vtsh*

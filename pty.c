@@ -255,6 +255,8 @@ pty_submit_command(const char *s, void *udata)
 
 	statbar_update_status(pty->statbar, STATBAR_STATE_STARTED,
 	    pty->pid, status, buffer_rows(pty->ts_buffer));
+
+	widget_focus_next(WIDGET(pty->cmd_editor), -1);
 }
 
 static int
@@ -272,6 +274,7 @@ pty_create_cmd(struct pty *pty)
 	    "cmd_editor", WIDGET(pty->hbox))) == NULL)
 		return -1;
 
+	WIDGET(pty->cmd_editor)->level = 0;
 	return 0;
 }
 
@@ -291,6 +294,7 @@ pty_create_ts(struct pty *pty)
 	    pty->parent)) == NULL)
 		return -1;
 
+	WIDGET(pty->ts_editor)->level = 1;
 	return 0;
 }
 

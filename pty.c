@@ -256,8 +256,6 @@ pty_submit_command(const char *s, void *udata)
 
 	statbar_update_status(pty->statbar, STATBAR_STATE_STARTED,
 	    pty->pid, status, buffer_rows(pty->ts_buffer));
-
-	widget_focus_next(WIDGET(pty->cmd_editor), -1);
 }
 
 static int

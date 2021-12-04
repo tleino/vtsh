@@ -46,8 +46,6 @@ static int	 editor_keypress(XKeyEvent *, void *);
 static int	 editor_draw_cursor(struct editor *, struct cursor *, int);
 static void	 editor_update_geometry(void *);
 
-static XIC ic;
-
 static void
 editor_update_geometry(void *udata)
 {
@@ -203,10 +201,12 @@ editor_set_cursor(struct editor *editor, struct cursor *cursor,
 	struct cursor *ocursor)
 {
 	XClearWindow(DPY(editor->dpy), editor->window);
+
 	editor->cursor = cursor;
 	editor->buffer = cursor->buffer;
 	editor->ocursor = ocursor;
 	buffer_add_listener(editor->buffer, draw_update, editor);
+
 	XFlush(DPY(editor->dpy));
 }
 
@@ -223,7 +223,6 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 	void *udata, int bgcolor, int max_rows, const char *name,
 	struct widget *parent)
 {
-	XIM xim;
 	struct editor *editor;
 
 	if ((editor = calloc(1, sizeof(struct editor))) == NULL)
@@ -260,15 +259,6 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 
 	editor_draw_cursor(editor, cursor, 0);
 
-	xim = XOpenIM(DPY(dpy), NULL, NULL, NULL);
-
-	ic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
-	    XNClientWindow, WINDOW(editor), NULL);
-
-#if 0
-	XSetICFocus(ic);
-#endif
-
 	widget_set_draw_callback(WIDGET(editor), editor_expose, editor);
 
 	widget_show(WIDGET(editor));
@@ -279,8 +269,8 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 void
 editor_free(struct editor *editor)
 {
-	/* TODO: free resources */
 	buffer_remove_listener(editor->buffer, draw_update);
+	widget_free(WIDGET(editor));
 	free(editor);
 }
 
@@ -386,7 +376,8 @@ editor_keypress(XKeyEvent *e, void *udata)
 		return 1;
 	}
 
-	if ((n = Xutf8LookupString(ic, e, ch, sizeof(ch), &sym, NULL)) < 0) {
+	if ((n = Xutf8LookupString(WIDGET(vc)->ic, e, ch, sizeof(ch),
+	    &sym, NULL)) < 0) {
 		/* TODO: Handle this error case */
 		n = 0;
 	} else {

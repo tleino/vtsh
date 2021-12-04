@@ -185,11 +185,11 @@ buffer_remove_listener(struct buffer *buffer, BLCallback callback)
 		return;
 	}
 
-	buffer->n_listeners--;
-	if (i < buffer->n_listeners)
+	if (i+1 < buffer->n_listeners)
 		memmove(&buffer->listeners[i], &buffer->listeners[i+1],
 		    (buffer->n_listeners - i) *
 		    sizeof(struct buffer_listener));
+	buffer->n_listeners--;
 }
 
 /*

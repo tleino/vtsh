@@ -20,12 +20,15 @@
 #include "pty.h"
 #include "widget.h"
 #include "layout.h"
+#include "editor.h"
 
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <err.h>
+#include <assert.h>
 
 struct ptylist {
 	struct dpy *dpy;
@@ -37,6 +40,7 @@ struct ptylist {
 
 static int	ptylist_keypress(XKeyEvent *, void *);
 static void	ptylist_add_pty(struct ptylist *);
+static int	ptylist_find_pty(struct ptylist *, struct widget *);
 
 struct ptylist *
 ptylist_create(const char *name, struct widget *parent)
@@ -73,8 +77,7 @@ fail:
 void
 ptylist_free(struct ptylist *ptylist)
 {
-	if (WINDOW(ptylist) != 0)
-		XDestroyWindow(DPY(ptylist->dpy), WINDOW(ptylist));
+	widget_free(WIDGET(ptylist));
 	free(ptylist);
 }
 
@@ -89,11 +92,25 @@ ptylist_add_pty(struct ptylist *ptylist)
 }
 
 static int
+ptylist_find_pty(struct ptylist *ptylist, struct widget *widget)
+{
+	int i;
+
+	for (i = 0; i < ptylist->n_ptys; i++)
+		if (WIDGET(pty_command_editor(ptylist->ptys[i])) == widget ||
+		    WIDGET(pty_typescript_editor(ptylist->ptys[i])) == widget)
+			return i;
+
+	return -1;
+}
+
+static int
 ptylist_keypress(XKeyEvent *xkey, void *udata)
 {
 	struct ptylist *ptylist = udata;
 	KeySym sym;
-	struct widget *root;
+	struct widget *root, *ptywidget;
+	int pty;
 
 	sym = XkbKeycodeToKeysym(DPY(ptylist->dpy), xkey->keycode, 0,
 	    (xkey->state & ShiftMask) ? 1 : 0);
@@ -110,6 +127,37 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 		if (root->level == 1)
 			root->level ^= 1;
 		widget_focus_prev(root->focus, root->level);
+		return 1;
+	case XK_BackSpace:
+		root = widget_find_root(WIDGET(ptylist));
+		ptywidget = root->focus;
+
+		/*
+		 * Ensure focus can land on a new pty, refuse otherwise.
+		 */
+		widget_focus_prev(ptywidget, root->level);
+		if (root->focus == ptywidget) {
+			widget_focus_next(ptywidget, root->level);
+			if (root->focus == ptywidget) {
+				widget_focus(ptywidget);
+				return 1;
+			}
+		}
+
+		/*
+		 * Remove it.
+		 */
+		pty = ptylist_find_pty(ptylist, ptywidget);
+		if (pty >= 0) {
+			pty_free(ptylist->ptys[pty]);
+			if (pty+1 < ptylist->n_ptys)
+				memmove(&ptylist->ptys[pty],
+				    &ptylist->ptys[pty+1],
+				    (ptylist->n_ptys-pty-1) *
+				    sizeof(struct pty *));
+			ptylist->n_ptys--;
+		} else
+			assert(0);
 		return 1;
 	case XK_Return:
 		root = widget_find_root(WIDGET(ptylist));

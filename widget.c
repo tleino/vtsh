@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <err.h>
 
 typedef enum FocusDir {
 	FOCUS_FORWARD,
@@ -57,6 +58,12 @@ static void		 widget_notify_focus_change(struct widget *, int);
 
 static int		 widget_enable_takefocus(struct widget *);
 static void		 widget_takefocus(Time, void *);
+
+#ifdef DEBUG
+static void		 widget_dump_tree(struct widget *, int);
+#else
+#define widget_dump_tree(_x, _y) do { } while(0);
+#endif
 
 static void
 widget_expose(XExposeEvent *e, void *udata)
@@ -196,6 +203,22 @@ widget_resize(XConfigureEvent *e, void *udata)
 	widget_call_geometry(widget);
 }
 
+#ifdef DEBUG
+#include <stdio.h>
+static void
+widget_dump_tree(struct widget *widget, int depth)
+{
+	int i;
+
+	for (i = 0; i < depth; i++)
+		putchar('\t');
+	puts(widget->name);
+
+	for (i = 0; i < widget->nchildren; i++)
+		widget_dump_tree(widget->children[i], depth+1);
+}
+#endif
+
 void
 widget_update_geometry(struct widget *widget)
 {
@@ -231,6 +254,9 @@ widget_focus(struct widget *widget)
 	root->focus = widget;
 	root->level = widget->level;
 	root->focus->has_focus = 1;
+
+	XSetICFocus(root->focus->ic);
+
 	widget_notify_focus_change(root->focus, 1);
 }
 
@@ -244,7 +270,7 @@ widget_find_focusable(struct widget *widget, FocusDir dir, int *has_prev,
 	if (widget->nchildren == 0 && widget->can_focus) {
 		if (widget == prevfocus)
 			*has_prev = 1;
-		else if (*has_prev == 1 &&
+		else if (*has_prev == 1 && widget->visible &&
 		    (widget->level == level || level == -1))
 			return widget;
 	}
@@ -329,6 +355,14 @@ widget_set_keypress_callback(struct widget *widget, WidgetKeyPress keypress,
 {
 	widget->keypress = keypress;
 	widget->keypress_udata = udata;
+
+	if (widget->window != 0) {
+		widget->ic = XCreateIC(widget_find_root(widget)->xim,
+		    XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+		    XNClientWindow, widget->window, NULL);
+		if (widget->ic == NULL)
+			errx(1, "cannot create Input Context");
+	}
 }
 
 void
@@ -410,6 +444,10 @@ _widget_create(int windowless, const char *name, struct widget *parent)
 		 * and layout containers.
 		 */
 		widget->event_mask |= (StructureNotifyMask | KeyPressMask);
+
+		widget->xim = XOpenIM(DPY(dpy), NULL, NULL, NULL);
+		if (widget->xim == NULL)
+			errx(1, "no XIM");
 	} else {
 		widget_add_child(parent, widget);
 		parent_window = widget_find_parent_window(parent)->window;
@@ -552,16 +590,17 @@ static int
 widget_remove_child(struct widget *widget, struct widget *child)
 {
 	int i;
+	void *src, *dst;
 
 	if ((i = widget_find_child(widget, child)) == -1)
 		return -1;
 
+	if (i+1 < widget->nchildren) {
+		dst = &widget->children[i];
+		src = &widget->children[i+1];
+		memmove(dst, src, (widget->nchildren-i-1) * sizeof(void *));
+	}
 	widget->nchildren--;
-
-	if (i+1 < widget->nchildren)
-		memmove(&widget->children[i], &widget->children[i+1],
-		    (widget->nchildren-i) * sizeof(*widget->children));	
-
 	return 0;
 }
 
@@ -593,11 +632,36 @@ widget_takefocus(Time t, void *udata)
 void
 widget_free(struct widget *widget)
 {
+	struct widget *root;
+	extern struct dpy *dpy;
+
+	root = widget_find_root(widget);
+
+	widget_dump_tree(root, 0);
+
+	if (widget->window != 0)
+		remove_handlers_for_window(widget->window);
+
+	widget_hide(widget);
+
 	while (widget->nchildren > 0)
 		widget_free(widget->children[widget->nchildren-1]);
 
 	if (widget->parent != NULL)
 		widget_remove_child(widget->parent, widget);
+	
+	if (widget->window != 0 && widget->event_mask & KeyPressMask &&
+	    widget->ic != 0)
+		XDestroyIC(widget->ic);
+
+	if (widget->parent == NULL && widget->xim != NULL)
+		XCloseIM(widget->xim);
+
+	if (widget->focus == widget)
+		widget->focus = NULL;
+
+	if (widget->window != 0)
+		XDestroyWindow(DPY(dpy), widget->window);
 
 	if (widget->name != NULL)
 		free(widget->name);

@@ -18,8 +18,12 @@
 #ifndef STATBAR_H
 #define STATBAR_H
 
-struct statbar;
 struct widget;
+
+struct statbar {
+	struct widget *widget;
+	char *status;
+};
 
 typedef enum statbar_state {
 	STATBAR_STATE_NOT_STARTED,

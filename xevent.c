@@ -20,6 +20,7 @@
 #include "dpy.h"
 
 #include <assert.h>
+#include <string.h>
 
 typedef enum handler_type {
 	HANDLER_TYPE_KEYPRESS, HANDLER_TYPE_EXPOSE, HANDLER_TYPE_RESIZE,
@@ -59,6 +60,24 @@ add_keypress_handler(Window window, KeypressHandler handler, void *udata)
 		HANDLER_TYPE_KEYPRESS, window, udata, { .keypress = handler }
 	};
 	return 0;
+}
+
+void
+remove_handlers_for_window(Window window)
+{
+	int i;
+
+	while (n_handlers > 0) {
+		for (i = 0; i < n_handlers; i++)
+			if (handlers[i].window == window)
+				break;
+		if (i == n_handlers)
+			break;
+		if (i+1 < n_handlers)
+			memmove(&handlers[i], &handlers[i+1],
+			    (n_handlers - i) * sizeof(struct event_handler));
+		n_handlers--;
+	}
 }
 
 int

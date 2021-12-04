@@ -221,6 +221,7 @@ pty_submit_command(const char *s, void *udata)
 	if (sh == NULL || sh[0] == '\0')
 		sh = "/bin/sh";
 
+	memset(&ts, '\0', sizeof(struct termios));
 	/*
 	 * We take OpenBSD defaults as the base and make some minor
 	 * adjustments.
@@ -301,12 +302,23 @@ pty_create_ts(struct pty *pty)
 void
 pty_free(struct pty *pty)
 {
+	if (pty->cmd_editor != NULL)
+		editor_free(pty->cmd_editor);
+
+	if (pty->statbar != NULL)
+		widget_free(WIDGET(pty->statbar));
+	if (pty->cwd != NULL)
+		widget_free(WIDGET(pty->cwd));
+	if (pty->hbox != NULL)
+		widget_free(WIDGET(pty->hbox));
+
 	if (pty->cmd_buffer != NULL)
 		buffer_free(pty->cmd_buffer);
 	if (pty->cmd_cursor != NULL)
 		buffer_cursor_free(pty->cmd_cursor);
-	if (pty->cmd_editor != NULL)
-		editor_free(pty->cmd_editor);
+
+	if (pty->ts_editor != NULL)
+		editor_free(pty->ts_editor);
 
 	if (pty->ts_buffer != NULL)
 		buffer_free(pty->ts_buffer);
@@ -314,8 +326,6 @@ pty_free(struct pty *pty)
 		buffer_cursor_free(pty->ts_icursor);
 	if (pty->ts_ocursor != NULL)
 		buffer_cursor_free(pty->ts_ocursor);
-	if (pty->ts_editor != NULL)
-		editor_free(pty->ts_editor);
 
 	free(pty);
 }

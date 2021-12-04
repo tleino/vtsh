@@ -61,8 +61,6 @@ struct widget {
 	struct widget **children;
 	int nchildren;
 
-	struct widget *focus;	/* Only relevant in root widget */
-
 	int level;
 	int has_focus;
 	int can_focus;
@@ -98,6 +96,14 @@ struct widget {
 	int visible;
 
 	long event_mask;
+
+	XIC ic;
+
+	/*
+	 * These are only relevant in root widget:
+	 */
+	struct widget *focus;
+	XIM xim;
 };
 
 struct widget	*widget_create(const char *, struct widget *);

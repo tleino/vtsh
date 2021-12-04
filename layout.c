@@ -91,6 +91,9 @@ layout_update_geometry(void *udata)
 		assert(0);
 	}
 
+	if (!WIDGET(layout)->visible)
+		return;
+
 	n = 0;
 	for (i = 0; i < NCHILDREN(layout); i++)
 		if (CHILD(layout, i)->visible)
@@ -140,8 +143,7 @@ layout_update_geometry(void *udata)
 	}
 
 	offset = 0;
-	for (i = 0; i < NCHILDREN(layout);
-	    offset += CHILD(layout, i)->size[axis], i++) {
+	for (i = 0; i < NCHILDREN(layout); i++) {
 		if (!CHILD(layout, i)->visible)
 			continue;
 
@@ -151,6 +153,8 @@ layout_update_geometry(void *udata)
 		CHILD(layout, i)->pos[!axis] = 0;
 		CHILD(layout, i)->size[axis] = sides[i];
 		CHILD(layout, i)->size[!axis] = WIDGET(layout)->size[!axis];
+
+		offset += CHILD(layout, i)->size[axis];
 
 		if (CHILD(layout, i)->parent->window == 0) {
 			POSX(CHILD(layout, i)) +=

@@ -25,11 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 
-struct statbar {
-	struct widget *widget;
-	char *status;
-};
-
 static void	statbar_draw(int, int, int, int, void *);
 
 struct statbar *

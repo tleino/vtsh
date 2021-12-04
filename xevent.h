@@ -31,4 +31,6 @@ int	add_expose_handler(Window, ExposeHandler, void *);
 int	add_resize_handler(Window, ResizeHandler, void *);
 int	add_focus_handler(Window, FocusHandler, void *);
 
+void	remove_handlers_for_window(Window);
+
 #endif

@@ -57,10 +57,10 @@ remove_event_source(int fd)
 	if (i == n_sources)
 		return;
 
-	n_sources--;
-	if (n_sources > 0 && i < n_sources-1)
+	if (i+1 < n_sources)
 		memmove(&sources[i], &sources[i+1], (n_sources - i) *
 		    sizeof(struct event_source));
+	n_sources--;
 }
 
 void

@@ -73,6 +73,8 @@ label_set(struct label *label, const char *text)
 	label->px_len = extents.xOff;
 
 	WIDGET_PREFER_WIDTH(label) = label->px_len;
+	WIDGET_PREFER_HEIGHT(label) = font_height();
+	widget_update_geometry(WIDGET(label));
 
 	label_draw(0, 0, WIDGET_WIDTH(label), WIDGET_HEIGHT(label), label);
 	XFlush(DPY(dpy));

@@ -22,7 +22,7 @@ struct widget;
 
 struct statbar {
 	struct widget *widget;
-	char *status;
+	struct label *label;
 };
 
 typedef enum statbar_state {
@@ -34,7 +34,6 @@ typedef enum statbar_state {
 
 struct statbar	*statbar_create(const char *, struct widget *);
 void		 statbar_free(struct statbar *);
-struct widget	*statbar_widget(struct statbar *);
 void		 statbar_update_status(struct statbar *, StatbarState,
 		    int, int, int);
 

@@ -43,7 +43,6 @@ void
 statbar_update_status(struct statbar *statbar, StatbarState state,
 	int pid, int ret, int lines)
 {
-	extern struct dpy *dpy;
 	char status[256];
 
 	if (pid != 0)

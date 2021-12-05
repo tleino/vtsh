@@ -150,10 +150,13 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 		ptylist_add_pty(ptylist);
 		return 1;
 	case XK_Escape:
+	case XK_Return:
 		root = widget_find_root(WIDGET(ptylist));
-		if (root->level == 1)
-			root->level ^= 1;
-		widget_focus_prev(root->focus, root->level);
+		root->level ^= 1;
+		if (root->level == 0)
+			widget_focus_prev(root->focus, root->level);
+		else
+			widget_focus_next(root->focus, root->level);
 		return 1;
 	case XK_BackSpace:
 		root = widget_find_root(WIDGET(ptylist));
@@ -185,12 +188,6 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 			ptylist->n_ptys--;
 		} else
 			assert(0);
-		return 1;
-	case XK_Return:
-		root = widget_find_root(WIDGET(ptylist));
-		if (root->level == 0)
-			root->level ^= 1;
-		widget_focus_next(root->focus, root->level);
 		return 1;
 	}
 

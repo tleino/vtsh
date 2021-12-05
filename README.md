@@ -83,23 +83,23 @@ user wishes.
 * Add support for some essential state such as current working directory
   that is necessary when not using an interactive shell session.
 
-## Peculiar keyboard focus system
+## Unique keyboard focus system
 
 *vtsh* can be used without mouse, unlike [acme](http://acme.cat-v.org/),
-but *vtsh* has a peculiar way of how it can be used using keyboard:
-* it has a sort of a multi-dimensional focus system, where you can move
-focus using *Alt+Up/Down* which focuses the previous or next buffer
-of the same category and you can change the focus category using *Esc*
-and *Alt+Enter*. For example, if you're on the output buffer, *Esc* leads
-to the command buffers, and if you're on a command buffer, *Alt+Enter*
-leads to the output buffers.
+but *vtsh* has a unique way of how it can be used using keyboard. *vtsh*
+has a two-level focus system:
+* one level is the command tabs;
+* another level is the output buffers.
+
+Toggling between the level is possible using *Alt+Enter*, or
+alternatively *Esc*.
 
 ## Default key bindings
 
 * **Alt+Up** Focus buffer above on the same level.
 * **Alt+Down** Focus buffer below on the same level.
-* **Esc** Move focus level up.
-* **Alt+Enter** Move focus level down.
+* **Alt+Enter** Toggle focus level.
+* **Esc** Toggle focus level (alternative binding).
 * **Alt+Backspace** Delete buffer + focus buffer above.
 * **Alt+Insert** Add new buffer + focus it + edit its command.
 * **Up** Move cursor up.

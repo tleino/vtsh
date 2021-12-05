@@ -66,7 +66,7 @@ static void		 widget_takefocus(Time, void *);
 #ifdef DEBUG
 static void		 widget_dump_tree(struct widget *, int);
 #else
-#define widget_dump_tree(_x, _y) do { } while(0);
+#define widget_dump_tree(...) ((void) 0)
 #endif
 
 static void
@@ -166,8 +166,8 @@ widget_root_keypress(XKeyEvent *xkey, void *udata)
 			puts("REQUESTED DUMP TREE");
 			widget_dump_tree(widget, 0);
 			return 1;
-		}
 #endif
+		}
 	}
 
 	return 0;
@@ -703,10 +703,7 @@ widget_takefocus(Time t, void *udata)
 void
 widget_free(struct widget *widget)
 {
-	struct widget *root;
 	extern struct dpy *dpy;
-
-	root = widget_find_root(widget);
 
 	if (widget->window != 0)
 		remove_handlers_for_window(widget->window);

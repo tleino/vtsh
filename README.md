@@ -107,6 +107,7 @@ leads to the output buffers.
 * **Left** Move cursor left.
 * **Right** Move cursor right.
 * **Enter** Add line or execute command / send stdin.
+* **Alt+a** Dump object tree to stdout (only if -DDEBUG is enabled)
 
 ## Dependencies
 

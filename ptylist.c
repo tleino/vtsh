@@ -29,11 +29,13 @@
 #include <string.h>
 #include <err.h>
 #include <assert.h>
+#include <stdio.h>
 
 struct ptylist {
 	struct dpy *dpy;
 	struct pty *ptys[100];
 	int n_ptys;
+	int i;
 	struct widget *widget;
 	struct layout *vbox;
 };
@@ -84,23 +86,48 @@ ptylist_free(struct ptylist *ptylist)
 static void
 ptylist_add_pty(struct ptylist *ptylist)
 {
-	if ((ptylist->ptys[ptylist->n_ptys] = pty_create(ptylist->dpy,
+	int i;
+	struct widget *root, *ptywidget = NULL;
+	char name[256];
+
+	root = widget_find_root(WIDGET(ptylist));
+	ptywidget = root->focus;
+	i = ptylist_find_pty(ptylist, ptywidget);
+	if (i == -1) {
+		i = ptylist->n_ptys;
+		ptywidget = NULL;
+	} else
+		ptywidget = WIDGET(ptylist->ptys[i]);
+
+	memmove(&ptylist->ptys[i+1], &ptylist->ptys[i],
+	    (ptylist->n_ptys-i) * sizeof(struct pty *));
+
+	snprintf(name, sizeof(name), "pty%d", ++ptylist->i);
+	if ((ptylist->ptys[i] = pty_create(ptylist->dpy, name,
 	    WIDGET(ptylist->vbox))) == NULL)
 		warn("creating pty");
 	else
 		ptylist->n_ptys++;
+
+	if (ptywidget != NULL)
+		widget_move_after(WIDGET(ptylist->ptys[i]), ptywidget);
+	widget_focus(WIDGET(ptylist->ptys[i]));
 }
 
 static int
 ptylist_find_pty(struct ptylist *ptylist, struct widget *widget)
 {
 	int i;
+	struct widget *np;
 
-	for (i = 0; i < ptylist->n_ptys; i++)
-		if (WIDGET(pty_command_editor(ptylist->ptys[i])) == widget ||
-		    WIDGET(pty_typescript_editor(ptylist->ptys[i])) == widget)
-			return i;
-
+	for (i = 0; i < ptylist->n_ptys; i++) {
+		np = widget;
+		while (np && np->parent != NULL) {
+			np = np->parent;
+			if (WIDGET(ptylist->ptys[i]) == np)
+				return i;
+		}
+	}
 	return -1;
 }
 

@@ -23,6 +23,7 @@
 typedef void (*WidgetDraw)(int, int, int, int, void *);
 typedef int (*WidgetKeyPress)(XKeyEvent *, void *);
 typedef void (*WidgetFocusChange)(int, void *);
+typedef void (*WidgetUpdatePrefer)(void *);
 typedef void (*WidgetGeometry)(void *);
 
 #define WIDGET(_x) (_x)->widget
@@ -70,6 +71,9 @@ struct widget {
 
 	WidgetGeometry geometry;
 	void *geometry_udata;
+
+	WidgetUpdatePrefer update_prefer;
+	void *update_prefer_udata;
 
 	WidgetKeyPress keypress;
 	void *keypress_udata;
@@ -123,10 +127,14 @@ void		 widget_focus(struct widget *);
 
 void		 widget_update_geometry(struct widget *);
 
+void		 widget_move_after(struct widget *, struct widget *);
+
 void		 widget_set_draw_callback(struct widget *,
 		    WidgetDraw, void *);
 void		 widget_set_geometry_callback(struct widget *,
 		    WidgetGeometry, void *);
+void		 widget_set_update_prefer_callback(struct widget *,
+		    WidgetUpdatePrefer, void *);
 void		 widget_set_keypress_callback(struct widget *,
 		    WidgetKeyPress, void *);
 void		 widget_set_focus_change_callback(struct widget *,

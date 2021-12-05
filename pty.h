@@ -18,13 +18,37 @@
 #ifndef PTY_H
 #define PTY_H
 
+#include <unistd.h>
+
 struct dpy;
 struct editor;
 struct widget;
 
-struct pty	*pty_create(struct dpy *, struct widget *);
+struct pty {
+	struct dpy *dpy;
+	struct widget *parent;
+	struct widget *widget;
+
+	pid_t pid;
+	int ptyfd;
+
+	struct layout *hbox;
+	struct layout *vbox;
+
+	struct buffer *cmd_buffer;
+	struct cursor *cmd_cursor;
+	struct editor *cmd_editor;
+
+	struct buffer *ts_buffer;
+	struct cursor *ts_icursor;
+	struct cursor *ts_ocursor;
+	struct editor *ts_editor;
+
+	struct statbar *statbar;
+	struct label *cwd;
+};
+
+struct pty	*pty_create(struct dpy *, const char *, struct widget *);
 void		 pty_free(struct pty *);
-struct editor	*pty_command_editor(struct pty *);
-struct editor	*pty_typescript_editor(struct pty *);
 
 #endif

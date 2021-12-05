@@ -25,8 +25,10 @@
 #include <assert.h>
 
 static void		 layout_update_geometry(void *);
+static void		 layout_update_prefer(void *);
 static struct layout	*layout_create(LayoutType, const char *,
 			    struct widget *);
+static int		 layout_axis(struct layout *);
 
 static struct layout *
 layout_create(LayoutType type, const char *name, struct widget *parent)
@@ -43,6 +45,8 @@ layout_create(LayoutType type, const char *name, struct widget *parent)
 		goto fail;
 
 	widget_set_geometry_callback(WIDGET(layout), layout_update_geometry,
+	    layout);
+	widget_set_update_prefer_callback(WIDGET(layout), layout_update_prefer,
 	    layout);
 	widget_show(WIDGET(layout));
 	return layout;
@@ -63,6 +67,45 @@ layout_create_hbox(const char *name, struct widget *parent)
 	return layout_create(LAYOUT_TYPE_HBOX, name, parent);
 }
 
+static int
+layout_axis(struct layout *layout)
+{
+	int axis;
+
+	switch (layout->type) {
+	case LAYOUT_TYPE_VBOX:
+		axis = HEIGHT_AXIS;
+		break;
+	case LAYOUT_TYPE_HBOX:
+		axis = WIDTH_AXIS;
+		break;
+	default:
+		assert(0);
+	}
+
+	return axis;
+
+}
+
+static void
+layout_update_prefer(void *udata)
+{
+	struct layout *layout = udata;
+	int i, axis;
+
+	axis = layout_axis(layout);
+	WIDGET(layout)->prefer_size[axis] = 0;
+	WIDGET(layout)->prefer_size[!axis] = 0;
+
+	for (i = 0; i < NCHILDREN(layout); i++) {
+		WIDGET(layout)->prefer_size[!axis] =
+		    MAX(WIDGET(layout)->prefer_size[!axis],
+		    CHILD(layout, i)->prefer_size[!axis]);
+		WIDGET(layout)->prefer_size[axis] +=
+		    CHILD(layout, i)->prefer_size[axis];
+	}
+}
+
 static void
 layout_update_geometry(void *udata)
 {
@@ -80,20 +123,10 @@ layout_update_geometry(void *udata)
 
 	font_set(FONT_NORMAL);
 
-	switch (layout->type) {
-	case LAYOUT_TYPE_VBOX:
-		axis = HEIGHT_AXIS;
-		break;
-	case LAYOUT_TYPE_HBOX:
-		axis = WIDTH_AXIS;
-		break;
-	default:
-		assert(0);
-	}
-
 	if (!WIDGET(layout)->visible)
 		return;
 
+	axis = layout_axis(layout);
 	n = 0;
 	for (i = 0; i < NCHILDREN(layout); i++)
 		if (CHILD(layout, i)->visible)
@@ -185,6 +218,7 @@ layout_update_geometry(void *udata)
 			XConfigureWindow(DPY(dpy),
 				    CHILD(layout, i)->window, mask, &changes);
 	}
+
 	XFlush(DPY(dpy));
 }
 

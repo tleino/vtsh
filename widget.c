@@ -32,6 +32,10 @@
 #include <assert.h>
 #include <err.h>
 
+#ifdef DEBUG
+#include <stdio.h>
+#endif
+
 typedef enum FocusDir {
 	FOCUS_FORWARD,
 	FOCUS_BACKWARD
@@ -73,6 +77,13 @@ widget_expose(XExposeEvent *e, void *udata)
 	if (widget->draw != NULL)
 		widget->draw(e->x, e->y, e->width, e->height,
 		    widget->draw_udata);
+}
+
+static void
+widget_update_prefer(struct widget *widget)
+{
+	if (widget->update_prefer != NULL)
+		widget->update_prefer(widget->update_prefer_udata);
 }
 
 static void
@@ -150,7 +161,13 @@ widget_root_keypress(XKeyEvent *xkey, void *udata)
 		case XK_Down:
 			widget_focus_next(widget->focus, widget->level);
 			return 1;
+#ifdef DEBUG
+		case XK_a:
+			puts("REQUESTED DUMP TREE");
+			widget_dump_tree(widget, 0);
+			return 1;
 		}
+#endif
 	}
 
 	return 0;
@@ -204,7 +221,6 @@ widget_resize(XConfigureEvent *e, void *udata)
 }
 
 #ifdef DEBUG
-#include <stdio.h>
 static void
 widget_dump_tree(struct widget *widget, int depth)
 {
@@ -222,8 +238,10 @@ widget_dump_tree(struct widget *widget, int depth)
 void
 widget_update_geometry(struct widget *widget)
 {
-	while (widget && widget->parent != NULL)
+	while (widget && widget->parent != NULL) {
 		widget = widget->parent;
+		widget_update_prefer(widget);
+	}
 
 	widget_call_geometry(widget);
 }
@@ -241,9 +259,15 @@ void
 widget_focus(struct widget *widget)
 {
 	struct widget *root;
+	int has_prev;
 
 	assert(widget != NULL);
-	assert(widget->can_focus == 1);
+
+	has_prev = 1;
+	widget = widget_find_focusable(widget, FOCUS_FORWARD, &has_prev,
+	    NULL, -1);
+	if (widget == NULL)
+		return;
 
 	root = widget_find_root(widget);
 	if (root->focus != NULL) {
@@ -391,13 +415,19 @@ widget_set_draw_callback(struct widget *widget, WidgetDraw draw, void *udata)
 }
 
 void
-widget_set_geometry_callback(
-	struct widget *widget,
-	WidgetGeometry geometry,
-	void *udata)
+widget_set_geometry_callback(struct widget *widget, WidgetGeometry geometry,
+    void *udata)
 {
 	widget->geometry = geometry;
 	widget->geometry_udata = udata;
+}
+
+void
+widget_set_update_prefer_callback(struct widget *widget,
+    WidgetUpdatePrefer prefer, void *udata)
+{
+	widget->update_prefer = prefer;
+	widget->update_prefer_udata = udata;
 }
 
 struct widget *
@@ -552,6 +582,47 @@ widget_hide(struct widget *widget)
 	widget_update_geometry(widget);
 }
 
+void
+widget_move_after(struct widget *widget, struct widget *after)
+{
+	void *dst, *src;
+	int i;
+
+	assert(widget != NULL);
+	assert(widget->parent != NULL);
+	assert(after != NULL);
+	assert(widget->parent == after->parent);
+	assert(widget->parent->nchildren > 0);
+
+	i = widget_find_child(widget->parent, widget);
+	assert(i >= 0);
+
+	/* Shrink */
+	if (i+1 < widget->parent->nchildren) {
+		dst = &widget->parent->children[i];
+		src = &widget->parent->children[i+1];
+		memmove(dst, src, (widget->parent->nchildren-i-1) *
+		    sizeof(void *));
+	}
+	widget->parent->nchildren--;
+
+	i = widget_find_child(widget->parent, after);
+	assert(i >= 0);
+	i++;
+
+	/* Expand */
+	dst = &widget->parent->children[i+1];
+	src = &widget->parent->children[i];
+	widget->parent->nchildren++;
+	memmove(dst, src,
+	    (widget->parent->nchildren-(i+1)) * sizeof(void *));
+
+	/* Put */
+	widget->parent->children[i] = widget;
+
+	widget_update_geometry(widget->parent);
+}
+
 static int
 widget_add_child(struct widget *widget, struct widget *child)
 {
@@ -636,8 +707,6 @@ widget_free(struct widget *widget)
 	extern struct dpy *dpy;
 
 	root = widget_find_root(widget);
-
-	widget_dump_tree(root, 0);
 
 	if (widget->window != 0)
 		remove_handlers_for_window(widget->window);

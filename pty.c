@@ -33,37 +33,15 @@
 #endif
 
 #include <sys/wait.h>
-#include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
 #include <termios.h>
 #include <limits.h>
+#include <stdio.h>
 
 struct editor;
-
-struct pty {
-	struct dpy *dpy;
-	struct widget *parent;
-
-	pid_t pid;
-	int ptyfd;
-
-	struct layout *hbox;
-
-	struct buffer *cmd_buffer;
-	struct cursor *cmd_cursor;
-	struct editor *cmd_editor;
-
-	struct buffer *ts_buffer;
-	struct cursor *ts_icursor;
-	struct cursor *ts_ocursor;
-	struct editor *ts_editor;
-
-	struct statbar *statbar;
-	struct label *cwd;
-};
 
 static int	pty_create_cmd(struct pty *);
 static int	pty_create_ts(struct pty *);
@@ -71,20 +49,8 @@ static void	pty_submit_command(const char *, void *);
 static void	pty_submit_stdin(const char *, void *);
 static void	pty_process_events(int, void *);
 
-struct editor *
-pty_command_editor(struct pty *pty)
-{
-	return pty->cmd_editor;
-}
-
-struct editor *
-pty_typescript_editor(struct pty *pty)
-{
-	return pty->ts_editor;
-}
-
 struct pty *
-pty_create(struct dpy *dpy, struct widget *parent)
+pty_create(struct dpy *dpy, const char *name, struct widget *parent)
 {
 	struct pty *pty;
 	char cwd[PATH_MAX];
@@ -95,7 +61,9 @@ pty_create(struct dpy *dpy, struct widget *parent)
 	pty->parent = parent;
 	pty->ptyfd = -1;
 
-	pty->hbox = layout_create_hbox("hbox", parent);
+	pty->vbox = layout_create_vbox(name, parent);
+	pty->widget = WIDGET(pty->vbox);
+	pty->hbox = layout_create_hbox("hbox", pty->widget);
 
 	if ((pty->cwd = label_create("cwd", WIDGET(pty->hbox))) == NULL)
 		goto fail;
@@ -290,7 +258,7 @@ pty_create_ts(struct pty *pty)
 	if ((pty->ts_editor = editor_create(pty->dpy,
 	    pty->ts_icursor,
 	    pty_submit_stdin, pty, COLOR_TEXT_BG, -1, "ts_editor",
-	    pty->parent)) == NULL)
+	    pty->widget)) == NULL)
 		return -1;
 
 	WIDGET(pty->ts_editor)->level = 1;
@@ -324,6 +292,9 @@ pty_free(struct pty *pty)
 		buffer_cursor_free(pty->ts_icursor);
 	if (pty->ts_ocursor != NULL)
 		buffer_cursor_free(pty->ts_ocursor);
+
+	if (pty->vbox != NULL)
+		widget_free(WIDGET(pty->vbox));
 
 	free(pty);
 }

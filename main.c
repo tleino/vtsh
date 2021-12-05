@@ -29,6 +29,7 @@
 #endif
 
 struct dpy *dpy;
+int running;
 
 int
 main(int argc, char *argv[])
@@ -60,7 +61,8 @@ main(int argc, char *argv[])
 
 	add_event_source(ConnectionNumber(DPY(dpy)), process_xevents, NULL);
 
-	for (;;)
+	running = 1;
+	while (running)
 		run_event_loop();
 
 	ptylist_free(ptylist);

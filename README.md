@@ -96,6 +96,7 @@ alternatively *Esc*.
 
 ## Default key bindings
 
+### Buffers
 * **Alt+Up** Focus buffer above on the same level.
 * **Alt+Down** Focus buffer below on the same level.
 * **Alt+Enter** Toggle focus level.
@@ -103,12 +104,17 @@ alternatively *Esc*.
 * **Alt+Backspace** Delete buffer.
 * **Alt+Space** Add new buffer.
 * **Alt+Insert** Add new buffer (alternative binding).
+
+### Editing
 * **Up** Move cursor up.
 * **Down** Move cursor down.
 * **Left** Move cursor left.
 * **Right** Move cursor right.
 * **Enter** Add line or execute command / send stdin.
-* **Alt+a** Dump object tree to stdout (only if -DDEBUG is enabled)
+
+### Misc
+* **Alt+q** Quit.
+* **Alt+a** Dump object tree to stdout (only if -DDEBUG is enabled).
 
 ## Dependencies
 

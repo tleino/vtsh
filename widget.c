@@ -149,6 +149,7 @@ widget_root_keypress(XKeyEvent *xkey, void *udata)
 	struct widget *widget = udata;	
 	KeySym sym;
 	extern struct dpy *dpy;
+	extern int running;
 
 	sym = XkbKeycodeToKeysym(DPY(dpy), xkey->keycode, 0,
 	    (xkey->state & ShiftMask) ? 1 : 0);
@@ -160,6 +161,9 @@ widget_root_keypress(XKeyEvent *xkey, void *udata)
 			return 1;
 		case XK_Down:
 			widget_focus_next(widget->focus, widget->level);
+			return 1;
+		case XK_q:
+			running = 0;
 			return 1;
 #ifdef DEBUG
 		case XK_a:

@@ -146,6 +146,7 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 		return 0;
 
 	switch (sym) {
+	case XK_space:
 	case XK_Insert:
 		ptylist_add_pty(ptylist);
 		return 1;

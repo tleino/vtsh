@@ -100,8 +100,9 @@ alternatively *Esc*.
 * **Alt+Down** Focus buffer below on the same level.
 * **Alt+Enter** Toggle focus level.
 * **Esc** Toggle focus level (alternative binding).
-* **Alt+Backspace** Delete buffer + focus buffer above.
-* **Alt+Insert** Add new buffer + focus it + edit its command.
+* **Alt+Backspace** Delete buffer.
+* **Alt+Space** Add new buffer.
+* **Alt+Insert** Add new buffer (alternative binding).
 * **Up** Move cursor up.
 * **Down** Move cursor down.
 * **Left** Move cursor left.

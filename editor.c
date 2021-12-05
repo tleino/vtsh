@@ -298,6 +298,9 @@ editor_keypress(XKeyEvent *e, void *udata)
 	KeySym sym;
 	char ch[4 + 1];
 	int n;
+	int row, col;
+	char *line;
+	size_t len;
 
 	sym = XkbKeycodeToKeysym(DPY(vc->dpy), e->keycode, 0,
 	    (e->state & ShiftMask) ? 1 : 0);
@@ -328,9 +331,22 @@ editor_keypress(XKeyEvent *e, void *udata)
 			if (vc->ocursor)
 				vc->submit(get_line_at_cursor(vc->cursor,
 				    vc->ocursor->col), vc->submit_udata);
-			else
-				vc->submit(get_line_at_cursor(vc->cursor, 0),
-				    vc->submit_udata);
+			else {
+				row = vc->cursor->row;
+				col = vc->cursor->col;
+				line = get_line_at_cursor(vc->cursor, 0);
+				len = strlen(line);
+
+				if (row+1 == buffer_rows(vc->buffer)) {
+					buffer_insert(vc->cursor, "\n", 1);
+					vc->cursor->row = row;
+					vc->cursor->col = col;
+				
+					editor_scroll_into_view(vc,
+					    vc->cursor->row, vc->cursor->col);
+				}
+				vc->submit(line, vc->submit_udata);
+			}
 		} else {
 			buffer_insert(vc->cursor, "\n", 1);
 		}

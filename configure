@@ -32,7 +32,7 @@ case $(uname) in
 		SYSTEM_LDFLAGS=-lutil
 	;;
 	OpenBSD )
-		SYSTEM_CFLAGS="-DHAVE_UTIL_H"
+		SYSTEM_CFLAGS="-DHAVE_UTIL_H -DHAVE_PLEDGE"
 		SYSTEM_LDFLAGS=-lutil
 	;;
 esac

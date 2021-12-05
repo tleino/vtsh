@@ -24,12 +24,21 @@
 #include <stdlib.h>
 #include <locale.h>
 
+#ifdef HAVE_PLEDGE
+#include <unistd.h>
+#endif
+
 struct dpy *dpy;
 
 int
 main(int argc, char *argv[])
 {
 	struct ptylist *ptylist;
+
+#ifdef HAVE_PLEDGE
+	if (pledge("stdio rpath wpath tty unix inet proc exec", NULL) == -1)
+		err(1, "pledge");
+#endif
 
 	if ((dpy = dpy_create()) == NULL)
 		errx(1, "failed connecting to X11 server");
@@ -41,6 +50,11 @@ main(int argc, char *argv[])
 
 	if ((ptylist = ptylist_create("vtsh", NULL)) == NULL)
 		err(1, "creating main window");
+
+#ifdef HAVE_PLEDGE
+	if (pledge("stdio rpath wpath tty proc exec", NULL) == -1)
+		err(1, "pledge");
+#endif
 
 	process_xevents(ConnectionNumber(DPY(dpy)), NULL);
 

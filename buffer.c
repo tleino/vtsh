@@ -28,6 +28,7 @@ struct row {
 	wchar_t *cols;
 	size_t n_cols;
 	size_t max_cols;
+	int uflags;
 };
 
 struct buffer_listener {
@@ -55,6 +56,25 @@ static void dump_buffer(struct buffer *buffer);
 
 static void broadcast_update(struct buffer *, int, int, int, int,
 	BufferUpdate);
+
+
+int
+buffer_row_uflags(struct buffer *buffer, int row)
+{
+	if (row >= buffer->n_rows)
+		return 0;
+
+	return buffer->rows[row].uflags;
+}
+
+void
+buffer_set_row_uflags(struct buffer *buffer, int row, int uflags)
+{
+	if (row >= buffer->n_rows)
+		return;
+
+	buffer->rows[row].uflags = uflags;
+}
 
 size_t
 buffer_cols(
@@ -92,6 +112,7 @@ buffer_clear_row(
 		return;
 
 	buffer->rows[row].n_cols = 0;
+	buffer->rows[row].uflags = 0;
 
 	broadcast_update(buffer, row, 0, row, 0, BUFFER_UPDATE_LINE);
 }

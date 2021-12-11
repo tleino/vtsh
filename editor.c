@@ -23,6 +23,7 @@
 #include "xevent.h"
 #include "util.h"
 #include "widget.h"
+#include "uflags.h"
 
 #include <stdio.h>
 
@@ -467,11 +468,17 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 		x = 0;
 		y = (i - editor->top_row) * font_height();
 
+		if (buffer_row_uflags(editor->buffer, i) & ROW_UFLAGS_CMDLINE)
+			font_set_fgcolor(COLOR_TEXT_CURSOR);
+		else
+			font_set_fgcolor(COLOR_TEXT_FG);
+
 		snprintf(lineno, sizeof(lineno), "%03zu", i + 1);
 		font_draw(editor->window, x, y, lineno, strlen(lineno));
 	}
 
 	font_set_bgcolor(editor->bgcolor);
+	font_set_fgcolor(COLOR_TEXT_FG);
 	for (i = from; i <= to && i < rows; i++) {
 		if (i < editor->top_row)
 			continue;

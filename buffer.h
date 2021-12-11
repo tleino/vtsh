@@ -45,6 +45,9 @@ void		 buffer_free(struct buffer *);
 int		 buffer_add_listener(struct buffer *, BLCallback, void *);
 void		 buffer_remove_listener(struct buffer *, BLCallback);
 
+int		 buffer_row_uflags(struct buffer *, int);
+void		 buffer_set_row_uflags(struct buffer *, int, int);
+
 struct cursor	*buffer_cursor_create(struct buffer *);
 void		 buffer_cursor_free(struct cursor *);
 int		 buffer_insert(struct cursor *, const char *, size_t);

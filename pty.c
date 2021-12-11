@@ -25,6 +25,7 @@
 #include "layout.h"
 #include "widget.h"
 #include "label.h"
+#include "uflags.h"
 
 #ifdef HAVE_PTY_H
 #include <pty.h>
@@ -140,6 +141,8 @@ pty_submit_stdin(const char *s, void *udata)
 
 	if (pty->ptyfd != -1) {
 		buffer_clear_row(pty->ts_buffer, pty->ts_icursor->row);
+		buffer_set_row_uflags(pty->ts_buffer, pty->ts_icursor->row,
+		    ROW_UFLAGS_CMDLINE);
 		pty->ts_icursor->col = 0;
 	
 		write(pty->ptyfd, s, strlen(s));

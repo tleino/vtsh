@@ -77,11 +77,12 @@ user wishes.
 * Bring the features from [iosplit](https://github.com/tleino/iosplit)
   to the editor such as overwriting previous command's output in an
   interactive session and launching new commands from a previous
-  command's output.
+  command's output (preliminary proof of concept is implemented).
 * Add support for e.g. '<file' to the command bar, so that files can be
   edited and saved with ease.
 * Add support for some essential state such as current working directory
-  that is necessary when not using an interactive shell session.
+  that is necessary when not using an interactive shell session (current
+  working directory is visible, but cannot be changed).
 
 ## Unique keyboard focus system
 

@@ -138,12 +138,27 @@ static void
 pty_submit_stdin(const char *s, void *udata)
 {
 	struct pty *pty = udata;
+	int i, rows, n_overwrite;
 
 	if (pty->ptyfd != -1) {
 		buffer_clear_row(pty->ts_buffer, pty->ts_icursor->row);
 		buffer_set_row_uflags(pty->ts_buffer, pty->ts_icursor->row,
 		    ROW_UFLAGS_CMDLINE);
 		pty->ts_icursor->col = 0;
+		pty->ts_ocursor->row = pty->ts_icursor->row;
+		pty->ts_ocursor->col = pty->ts_icursor->col;
+
+		rows = buffer_rows(pty->ts_buffer);
+		n_overwrite = 0;
+		for (i = pty->ts_icursor->row+1; i < rows; i++) {
+			if (buffer_row_uflags(pty->ts_buffer, i) &
+			    ROW_UFLAGS_CMDLINE)
+				break;
+			n_overwrite++;
+		}
+		while (n_overwrite--)
+			buffer_remove_row(pty->ts_buffer,
+			    pty->ts_icursor->row+1);
 	
 		write(pty->ptyfd, s, strlen(s));
 		write(pty->ptyfd, "\n", 1);

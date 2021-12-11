@@ -446,6 +446,8 @@ buffer_insert(struct cursor *cursor, const char *data, size_t len)
 	row = from_row = CURSOR_ROW(cursor);
 	col = from_col = CURSOR_COL(cursor);
 
+	buffer_restrain_cursor(cursor->buffer, cursor);
+
 	while (len > 0) {
 		n = mbtowc(&wc, data, len);
 		/* TODO: Handle n==0 */

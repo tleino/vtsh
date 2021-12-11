@@ -329,10 +329,10 @@ editor_keypress(XKeyEvent *e, void *udata)
 	case XK_KP_Enter:
 	case XK_Return:
 		if (vc->submit != NULL) {
-			if (vc->ocursor)
+			if (vc->ocursor) {
 				vc->submit(get_line_at_cursor(vc->cursor,
-				    vc->ocursor->col), vc->submit_udata);
-			else {
+				    0), vc->submit_udata);
+			} else {
 				row = vc->cursor->row;
 				col = vc->cursor->col;
 				line = get_line_at_cursor(vc->cursor, 0);

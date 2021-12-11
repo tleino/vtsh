@@ -272,11 +272,11 @@ pty_free(struct pty *pty)
 		editor_free(pty->cmd_editor);
 
 	if (pty->statbar != NULL)
-		widget_free(WIDGET(pty->statbar));
+		statbar_free(pty->statbar);
 	if (pty->cwd != NULL)
-		widget_free(WIDGET(pty->cwd));
+		label_free(pty->cwd);
 	if (pty->hbox != NULL)
-		widget_free(WIDGET(pty->hbox));
+		layout_free(pty->hbox);
 
 	if (pty->cmd_buffer != NULL)
 		buffer_free(pty->cmd_buffer);
@@ -294,7 +294,7 @@ pty_free(struct pty *pty)
 		buffer_cursor_free(pty->ts_ocursor);
 
 	if (pty->vbox != NULL)
-		widget_free(WIDGET(pty->vbox));
+		layout_free(pty->vbox);
 
 	free(pty);
 }

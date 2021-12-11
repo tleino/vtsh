@@ -717,6 +717,11 @@ widget_free(struct widget *widget)
 	while (widget->nchildren > 0)
 		widget_free(widget->children[widget->nchildren-1]);
 
+	if (widget->children != NULL) {
+		free(widget->children);
+		widget->children = NULL;
+	}
+
 	if (widget->parent != NULL)
 		widget_remove_child(widget->parent, widget);
 	

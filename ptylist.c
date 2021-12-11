@@ -79,6 +79,14 @@ fail:
 void
 ptylist_free(struct ptylist *ptylist)
 {
+	int i;
+
+	for (i = 0; i < ptylist->n_ptys; i++)
+		pty_free(ptylist->ptys[i]);
+
+	if (ptylist->vbox != NULL)
+		layout_free(ptylist->vbox);
+
 	widget_free(WIDGET(ptylist));
 	free(ptylist);
 }

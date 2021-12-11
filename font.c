@@ -183,3 +183,21 @@ font_load(int id)
 
 	return ftfont[id];
 }
+
+void
+font_close()
+{
+	int i;
+
+	for (i = 0; i < NUM_FONT; i++) {
+		if (ftfont[i] != NULL) {
+			XftFontClose(DPY(dpy), ftfont[i]);
+			ftfont[i] = NULL;
+		}
+	}
+
+	if (ftdraw != NULL) {
+		XftDrawDestroy(ftdraw);
+		ftdraw = NULL;
+	}
+}

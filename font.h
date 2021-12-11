@@ -25,7 +25,6 @@
 
 struct dpy;
 
-void	 font_init(struct dpy *);
 int	 font_draw(Window, int, int, const char *, size_t);
 int	 font_draw_wc(Window, int, int, const wchar_t *, size_t);
 void	 font_clear(Window, int, int, int);
@@ -35,5 +34,6 @@ void	 font_set(int);
 int	 font_height(void);
 void	 font_set_fgcolor(int);
 void	 font_set_bgcolor(int);
+void	 font_close(void);
 
 #endif

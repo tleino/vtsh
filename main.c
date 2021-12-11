@@ -19,6 +19,7 @@
 #include "ptylist.h"
 #include "event.h"
 #include "xevent.h"
+#include "font.h"
 
 #include <err.h>
 #include <stdlib.h>
@@ -65,7 +66,13 @@ main(int argc, char *argv[])
 	while (running)
 		run_event_loop();
 
+	XSync(DPY(dpy), False);
+	font_close();
+
+	XSync(DPY(dpy), False);
 	ptylist_free(ptylist);
+
+	XSync(DPY(dpy), False);
 	dpy_free(dpy);
 	return 0;
 }

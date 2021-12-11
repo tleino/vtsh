@@ -269,7 +269,11 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 void
 editor_free(struct editor *editor)
 {
+	extern struct dpy *dpy;
+
 	buffer_remove_listener(editor->buffer, draw_update);
+	if (editor->gc)
+		XFreeGC(DPY(dpy), editor->gc);
 	widget_free(WIDGET(editor));
 	free(editor);
 }

@@ -167,6 +167,7 @@ buffer_free(struct buffer *buffer)
 	for (i = 0; i < buffer->n_rows; i++)
 		if (buffer->rows[i].cols != NULL)
 			free(buffer->rows[i].cols);
+	free(buffer->rows);
 
 	buffer->n_rows = buffer->max_rows = 0;
 	free(buffer);

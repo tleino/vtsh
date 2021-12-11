@@ -271,6 +271,12 @@ pty_create_ts(struct pty *pty)
 void
 pty_free(struct pty *pty)
 {
+	if (pty->ptyfd != -1) {
+		remove_event_source(pty->ptyfd);
+		close(pty->ptyfd);
+		pty->ptyfd = -1;
+	}
+
 	if (pty->cmd_editor != NULL)
 		editor_free(pty->cmd_editor);
 

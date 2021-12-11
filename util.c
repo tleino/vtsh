@@ -39,10 +39,6 @@ grow_array(void **arr, size_t sz, size_t *max_elem)
 
 	if ((tmp = realloc(*arr, target * sz)) == NULL)
 		return -1;
-#if 0
-	printf("Clear %d bytes from %d\n", target - *max_elem, *max_elem);
-	memset(&tmp[*max_elem], '\0', target - *max_elem);
-#endif
 
 	*arr = tmp;
 	*max_elem = target;

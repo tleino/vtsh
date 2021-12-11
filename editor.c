@@ -373,10 +373,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 		    1 + (vc->bottom_row - vc->top_row), 0);
 		break;
 	case XK_BackSpace:
-		if (vc->cursor->col > 0) {
-			vc->cursor->col--;
-			buffer_erase(vc->buffer, vc->cursor);
-		}
+		buffer_erase(vc->buffer, vc->cursor);
 		return 1;
 	case XK_Delete:
 		return 1;

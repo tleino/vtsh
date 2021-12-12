@@ -352,6 +352,30 @@ editor_keypress(XKeyEvent *e, void *udata)
 			buffer_insert(vc->cursor, "\n", 1);
 		}
 		return 1;
+	case XK_a:
+		if (e->state & ControlMask) {
+			buffer_update_cursor(vc->buffer, vc->cursor, 0,
+			    -vc->cursor->col);
+			return 1;	
+		}
+		break;
+	case XK_e:
+		if (e->state & ControlMask) {
+			buffer_update_cursor(vc->buffer, vc->cursor, 0,
+			    buffer_cols(vc->buffer, vc->cursor->row) -
+			    vc->cursor->col);
+			return 1;
+		}
+		break;
+	case XK_k:
+		if (e->state & ControlMask) {
+			if (buffer_cols(vc->buffer, vc->cursor->row) == 0)
+				buffer_remove_row(vc->buffer, vc->cursor->row);
+			else
+				buffer_erase_eol(vc->buffer, vc->cursor);
+			return 1;
+		}
+		break;
 	case XK_Left:
 		buffer_update_cursor(vc->buffer, vc->cursor, 0, -1);
 		break;

@@ -291,9 +291,19 @@ buffer_update_cursor(
 	int row_add,
 	int col_add)
 {
+	int old_row, old_col;
+
+	old_row = cursor->row;
+	old_col = cursor->col;
+
 	cursor->row += row_add;
 	cursor->col += col_add;
+
 	buffer_restrain_cursor(buffer, cursor);
+	broadcast_update(buffer, old_row, old_col, old_row, old_col,
+	    BUFFER_UPDATE_LINE);
+	broadcast_update(buffer, cursor->row, cursor->col, cursor->row,
+	    cursor->col, BUFFER_UPDATE_LINE);
 }
 
 static void
@@ -390,6 +400,23 @@ buffer_remove_row(struct buffer *buffer, int row)
 	from = row > 0 ? row-1 : 0;
 	to = buffer->n_rows > 0 ? buffer->n_rows-1 : 0;
 	broadcast_update(buffer, from, 0, to, 0, BUFFER_UPDATE_LINE);
+}
+
+void
+buffer_erase_eol(struct buffer *buffer, struct cursor *cursor)
+{
+	buffer_restrain_cursor(buffer, cursor);
+
+	if (buffer->n_rows == 0)
+		return;
+
+	buffer->rows[cursor->row].n_cols -=
+	    (buffer->rows[cursor->row].n_cols - cursor->col);
+
+	buffer_restrain_cursor(buffer, cursor);
+
+	broadcast_update(cursor->buffer, cursor->row, cursor->col,
+	    cursor->row, INT_MAX, BUFFER_UPDATE_LINE);
 }
 
 void

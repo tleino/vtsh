@@ -100,8 +100,8 @@ but the state is not very interesting e.g. when we're running a long-lived
 
 ## TODO
 
-* Add standard features like basic Emacs bindings to the editor
-  (it is very barebones at the moment).
+* Add more standard features like more Emacs bindings to the editor
+  (it is quite barebones at the moment).
 * Bring the features from [iosplit](https://github.com/tleino/iosplit)
   to the editor such as overwriting previous command's output in an
   interactive session and launching new commands from a previous
@@ -145,6 +145,9 @@ alternatively *Esc*.
 * **Left** Move cursor left.
 * **Right** Move cursor right.
 * **Enter** Add line or execute command / send stdin.
+* **Ctrl+a** Move to beginning of line.
+* **Ctrl+e** Move to end of line.
+* **Ctrl+k** Kill to end of line (or remove line if line is empty).
 
 ### Misc
 * **Alt+q** Quit.

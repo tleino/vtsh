@@ -101,6 +101,17 @@ fail:
 	return NULL;
 }
 
+void
+pty_toggle_hide_output(struct pty *pty)
+{
+	if (pty->ts_editor) {
+		if (WIDGET(pty->ts_editor)->visible)
+			widget_hide(WIDGET(pty->ts_editor));
+		else
+			widget_show(WIDGET(pty->ts_editor));
+	}
+}
+
 static void
 pty_process_events(int ptyfd, void *udata)
 {

@@ -55,5 +55,6 @@ struct pty {
 
 struct pty	*pty_create(struct pty *, const char *, struct widget *);
 void		 pty_free(struct pty *);
+void		 pty_toggle_hide_output(struct pty *);
 
 #endif

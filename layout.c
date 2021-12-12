@@ -101,6 +101,10 @@ layout_update_prefer(void *udata)
 		WIDGET(layout)->prefer_size[!axis] =
 		    MAX(WIDGET(layout)->prefer_size[!axis],
 		    CHILD(layout, i)->prefer_size[!axis]);
+
+		if (!CHILD(layout, i)->visible)
+			continue;
+
 		WIDGET(layout)->prefer_size[axis] +=
 		    CHILD(layout, i)->prefer_size[axis];
 	}
@@ -135,9 +139,12 @@ layout_update_geometry(void *udata)
 	if (n == 0)
 		return;
 
-	for (i = 0; i < NCHILDREN(layout); i++)
+	for (i = 0; i < NCHILDREN(layout); i++) {
+		if (!CHILD(layout, i)->visible)
+			continue;
 		if (CHILD(layout, i)->prefer_size[axis] == 0)
 			CHILD(layout, i)->prefer_size[axis] = font_height();
+	}
 
 	equal = WIDGET(layout)->size[axis] / n;
 	surplus = 0;

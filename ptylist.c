@@ -190,6 +190,11 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 				ptylist_add_pty(ptylist, pty->master);
 		}
 		return 1;
+	case XK_h:
+		pty = ptylist_find_focus(ptylist);
+		if (pty != NULL)
+			pty_toggle_hide_output(pty);
+		return 1;
 	case XK_Escape:
 	case XK_Return:
 		root = widget_find_root(WIDGET(ptylist));

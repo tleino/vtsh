@@ -121,7 +121,12 @@ widget_call_geometry(struct widget *widget)
 	 * This will get triggered only if we are not in a layout (because
 	 * in a layout at this point e.g. 'old_width' will be same as
 	 * 'width'.
+	 *
+	 * FIXME: Why this was needed in the first place?
+	 *        Apparently it causes problems when a hidden widget
+	 *        reappears, so disabling it for now.
 	 */
+#if 0
 	if (widget->window != 0 && widget->parent != NULL &&
 	    (widget->old_size[WIDTH_AXIS] != widget->size[WIDTH_AXIS] ||
 	    widget->old_size[HEIGHT_AXIS] != widget->size[HEIGHT_AXIS] ||
@@ -131,6 +136,7 @@ widget_call_geometry(struct widget *widget)
 		    widget->pos[WIDTH_AXIS], widget->pos[HEIGHT_AXIS],
 		    widget->size[WIDTH_AXIS], widget->size[HEIGHT_AXIS]);
 	}
+#endif
 
 	widget->has_managed_geometry = 0;
 
@@ -232,7 +238,10 @@ widget_dump_tree(struct widget *widget, int depth)
 
 	for (i = 0; i < depth; i++)
 		putchar('\t');
-	puts(widget->name);
+	printf("%s (prefer %d,%d actual %d,%d pos %d,%d vis %d)\n",
+	    widget->name, widget->prefer_size[0], widget->prefer_size[1],
+	    widget->size[0], widget->size[1], widget->pos[0], widget->pos[1],
+	    widget->visible);
 
 	for (i = 0; i < widget->nchildren; i++)
 		widget_dump_tree(widget->children[i], depth+1);

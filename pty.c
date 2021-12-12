@@ -258,9 +258,10 @@ pty_submit_command(const char *s, void *udata)
 	 * adjustments.
 	 */
 	ts.c_lflag = (ICANON | ISIG | IEXTEN | ECHO | ECHOE);
+	ts.c_lflag &= ~(ECHO);
 	ts.c_iflag = (IXON | IXANY | IMAXBEL | BRKINT | IGNCR);
 	ts.c_iflag |= IGNCR;
-	ts.c_iflag &= (ICRNL);
+	ts.c_iflag &= ~(ICRNL);
 	ts.c_oflag |= (OPOST | OCRNL);
 	ts.c_oflag &= ~(OCRNL);
 	ts.c_cflag = (CREAD | CS8 | HUPCL);

@@ -170,10 +170,21 @@ buffer_create()
 }
 
 void
+buffer_clear(struct buffer *buffer)
+{
+	while (buffer->n_rows)
+		buffer_remove_row(buffer, buffer->n_rows-1);
+
+	if (buffer->rows != NULL) {
+		free(buffer->rows);
+		buffer->rows = NULL;
+	}
+	buffer->max_rows = 0;
+}
+
+void
 buffer_free(struct buffer *buffer)
 {
-	size_t i;
-
 	assert(buffer != NULL);
 
 	if (buffer->listeners != NULL) {
@@ -182,13 +193,7 @@ buffer_free(struct buffer *buffer)
 		buffer->n_listeners = buffer->max_listeners = 0;
 	}
 
-	for (i = 0; i < buffer->n_rows; i++)
-		if (buffer->rows[i].cols != NULL)
-			free(buffer->rows[i].cols);
-	if (buffer->rows != NULL)
-		free(buffer->rows);
-
-	buffer->n_rows = buffer->max_rows = 0;
+	buffer_clear(buffer);
 	free(buffer);
 }
 
@@ -324,16 +329,17 @@ buffer_insert_char(struct buffer *buffer, int row, int col, wchar_t ch)
 		if (buffer_insert_row(buffer, 0) == -1)
 			return -1;
 
-	row = MIN(row, buffer->n_rows);
+	assert(buffer->n_rows > 0);
+	row = MIN(row, buffer->n_rows-1);
 	rowptr = &buffer->rows[row];
 	assert(rowptr != NULL);
 
-	col = MIN(col, rowptr->n_cols);
 	if (rowptr->n_cols == rowptr->max_cols)
 		if (grow_array((void **) &rowptr->cols,
 		    sizeof(*rowptr->cols), &rowptr->max_cols) == -1)
 			return -1;
 
+	col = MIN(col, rowptr->n_cols);
 	if (col < rowptr->n_cols) {
 		dst = &rowptr->cols[col+1];
 		src = &rowptr->cols[col];

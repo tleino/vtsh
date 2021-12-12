@@ -40,9 +40,10 @@ struct ptylist {
 	struct layout *vbox;
 };
 
-static int	ptylist_keypress(XKeyEvent *, void *);
-static void	ptylist_add_pty(struct ptylist *);
-static int	ptylist_find_pty(struct ptylist *, struct widget *);
+static int		 ptylist_keypress(XKeyEvent *, void *);
+static struct pty	*ptylist_add_pty(struct ptylist *, struct pty *);
+static int		 ptylist_find_pty(struct ptylist *, struct widget *);
+static struct pty	*ptylist_find_focus(struct ptylist *);
 
 struct ptylist *
 ptylist_create(const char *name, struct widget *parent)
@@ -65,7 +66,7 @@ ptylist_create(const char *name, struct widget *parent)
 	widget_set_keypress_callback(WIDGET(ptylist), ptylist_keypress,
 	    ptylist);
 
-	ptylist_add_pty(ptylist);
+	ptylist_add_pty(ptylist, NULL);
 
 	widget_show(WIDGET(ptylist->vbox));
 	widget_show(WIDGET(ptylist));
@@ -91,12 +92,13 @@ ptylist_free(struct ptylist *ptylist)
 	free(ptylist);
 }
 
-static void
-ptylist_add_pty(struct ptylist *ptylist)
+static struct pty *
+ptylist_add_pty(struct ptylist *ptylist, struct pty *master)
 {
 	int i;
 	struct widget *root, *ptywidget = NULL;
 	char name[256];
+	struct pty *pty;
 
 	root = widget_find_root(WIDGET(ptylist));
 	ptywidget = root->focus;
@@ -111,15 +113,19 @@ ptylist_add_pty(struct ptylist *ptylist)
 	    (ptylist->n_ptys-i) * sizeof(struct pty *));
 
 	snprintf(name, sizeof(name), "pty%d", ++ptylist->i);
-	if ((ptylist->ptys[i] = pty_create(ptylist->dpy, name,
-	    WIDGET(ptylist->vbox))) == NULL)
+	pty = pty_create(master, name, WIDGET(ptylist->vbox));
+	if (pty == NULL) {
 		warn("creating pty");
-	else
-		ptylist->n_ptys++;
+		return NULL;
+	}
+	ptylist->ptys[i] = pty;
+	ptylist->n_ptys++;
 
 	if (ptywidget != NULL)
 		widget_move_after(WIDGET(ptylist->ptys[i]), ptywidget);
 	widget_focus(WIDGET(ptylist->ptys[i]));
+
+	return pty;
 }
 
 static int
@@ -139,13 +145,30 @@ ptylist_find_pty(struct ptylist *ptylist, struct widget *widget)
 	return -1;
 }
 
+static struct pty *
+ptylist_find_focus(struct ptylist *ptylist)
+{
+	struct widget *root, *ptywidget;
+	int i;
+
+	root = widget_find_root(WIDGET(ptylist));
+	ptywidget = root->focus;
+
+	i = ptylist_find_pty(ptylist, ptywidget);
+	if (i >= 0)
+		return ptylist->ptys[i];
+
+	return NULL;
+}
+
 static int
 ptylist_keypress(XKeyEvent *xkey, void *udata)
 {
 	struct ptylist *ptylist = udata;
 	KeySym sym;
 	struct widget *root, *ptywidget;
-	int pty;
+	int i;
+	struct pty *pty;
 
 	sym = XkbKeycodeToKeysym(DPY(ptylist->dpy), xkey->keycode, 0,
 	    (xkey->state & ShiftMask) ? 1 : 0);
@@ -156,7 +179,16 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 	switch (sym) {
 	case XK_space:
 	case XK_Insert:
-		ptylist_add_pty(ptylist);
+		pty = ptylist_add_pty(ptylist, NULL);
+		return 1;
+	case XK_s:
+		pty = ptylist_find_focus(ptylist);
+		if (pty != NULL) {
+			if (pty->ptyfd != -1)
+				ptylist_add_pty(ptylist, pty);
+			else if (pty->master != NULL)
+				ptylist_add_pty(ptylist, pty->master);
+		}
 		return 1;
 	case XK_Escape:
 	case XK_Return:
@@ -186,13 +218,13 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 		/*
 		 * Remove it.
 		 */
-		pty = ptylist_find_pty(ptylist, ptywidget);
-		if (pty >= 0) {
-			pty_free(ptylist->ptys[pty]);
-			if (pty+1 < ptylist->n_ptys)
-				memmove(&ptylist->ptys[pty],
-				    &ptylist->ptys[pty+1],
-				    (ptylist->n_ptys-pty-1) *
+		i = ptylist_find_pty(ptylist, ptywidget);
+		if (i >= 0) {
+			pty_free(ptylist->ptys[i]);
+			if (i+1 < ptylist->n_ptys)
+				memmove(&ptylist->ptys[i],
+				    &ptylist->ptys[i+1],
+				    (ptylist->n_ptys-i-1) *
 				    sizeof(struct pty *));
 			ptylist->n_ptys--;
 		} else

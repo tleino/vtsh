@@ -41,6 +41,7 @@ typedef void (*BLCallback)(int, int, int, int, BufferUpdate, void *);
 
 struct buffer	*buffer_create(void);
 void		 buffer_free(struct buffer *);
+void		 buffer_clear(struct buffer *);
 
 int		 buffer_add_listener(struct buffer *, BLCallback, void *);
 void		 buffer_remove_listener(struct buffer *, BLCallback);

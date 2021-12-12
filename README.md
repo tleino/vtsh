@@ -70,6 +70,34 @@ but it also means more *user control* by providing a single layer which can
 be used for customizing the representation and controls how ever the
 user wishes.
 
+## Sending input
+
+In a perfect world all text-based software would be implemented in a
+non-interactive stateless request-response form where one request
+results in one response. That way we'd have the greatest simplicity and
+composability, but in reality we have many types of text-based software:
+* stateless request-response (e.g. *curl* requests to
+HTTP REST API);
+* stateless request-response with a long-lived response stream (e.g. *iostat*
+configured to report status every second);
+* **use slave buffers:** stateful request-response stream (e.g. *sh*, *telnet*
+or *ed* session);
+* **use inline input:** asynchronous request-response stream that may send
+response at any random moment without a request (e.g. *sh* with background
+commands, *mqtt* session or a chat session).
+
+In addition to these, we have cursor-addressable text-based software such
+as *mutt*, *emacs* or *vi* but these will not be supported.
+
+For supporting the different types of text-based software we need to both
+support sending input in a traditional *typescript*-way, i.e. inline input to
+the output stream (for asynchronous streams or for streams where the
+visibility of past commands is important for getting a picture of the
+current state) and for the other cases, we can use the command editor with
+or without slave buffers. The slave buffers help when we have some state
+but the state is not very interesting e.g. when we're running a long-lived
+*ssh* session to a remote host.
+
 ## TODO
 
 * Add standard features like basic Emacs bindings to the editor
@@ -77,12 +105,15 @@ user wishes.
 * Bring the features from [iosplit](https://github.com/tleino/iosplit)
   to the editor such as overwriting previous command's output in an
   interactive session and launching new commands from a previous
-  command's output (preliminary proof of concept is implemented).
+  command's output (preliminary proof of concept is implemented, and
+  a preliminary proof of concept is also implemented in form of slave
+  buffers).
 * Add support for e.g. '<file' to the command bar, so that files can be
   edited and saved with ease.
 * Add support for some essential state such as current working directory
   that is necessary when not using an interactive shell session (current
   working directory is visible, but cannot be changed).
+* Distinguish slave buffers from non-slave buffers.
 
 ## Unique keyboard focus system
 
@@ -105,6 +136,7 @@ alternatively *Esc*.
 * **Alt+Backspace** Delete buffer.
 * **Alt+Space** Add new buffer.
 * **Alt+Insert** Add new buffer (alternative binding).
+* **Alt+s** Add slave buffer (stdin will be send to master).
 
 ### Editing
 * **Up** Move cursor up.

@@ -16,7 +16,6 @@
  */
 
 #include "pty.h"
-#include "dpy.h"
 #include "buffer.h"
 #include "editor.h"
 #include "color.h"
@@ -50,17 +49,24 @@ static void	pty_submit_command(const char *, void *);
 static void	pty_submit_stdin(const char *, void *);
 static void	pty_process_events(int, void *);
 
+static int	pty_add_slave(struct pty *, struct pty *);
+static int	pty_find_slave(struct pty *, struct pty *);
+static void	pty_remove_slave(struct pty *, struct pty *);
+
 struct pty *
-pty_create(struct dpy *dpy, const char *name, struct widget *parent)
+pty_create(struct pty *master, const char *name, struct widget *parent)
 {
 	struct pty *pty;
 	char cwd[PATH_MAX];
 
 	if ((pty = calloc(1, sizeof(struct pty))) == NULL)
 		return NULL;
-	pty->dpy = dpy;
 	pty->parent = parent;
 	pty->ptyfd = -1;
+
+	if (master != NULL)
+		if (pty_add_slave(master, pty) == -1)
+			goto fail;
 
 	pty->vbox = layout_create_vbox(name, parent);
 	pty->widget = WIDGET(pty->vbox);
@@ -100,11 +106,21 @@ pty_process_events(int ptyfd, void *udata)
 {
 	int n;
 	static char buf[8192];
-	struct pty *pty = udata;
+	struct pty *master = udata, *pty;
 	int status;
 	int state;
 
 	n = read(ptyfd, buf, sizeof(buf));
+
+	if (n > 0 && master->active_slave != NULL)
+		pty = master->active_slave;
+	else
+		pty = master;
+
+	if (n <= 0 && master->n_slaves > 0)
+		while (master->n_slaves)
+			pty_remove_slave(master,
+			    master->slaves[master->n_slaves-1]);
 
 	if (n > 0) {
 		buffer_insert(pty->ts_ocursor, buf, n);
@@ -171,10 +187,28 @@ pty_submit_command(const char *s, void *udata)
 {
 	int status;
 	char *sh;
-	struct pty *pty = udata;
+	struct pty *pty = udata, *master;
 	struct termios ts;
 
+	master = pty->master;
+	if (master != NULL) {
+		master->active_slave = pty;
+
+		buffer_clear(pty->ts_buffer);
+		pty->ts_icursor->row = 0;
+		pty->ts_icursor->col = 0;
+		pty->ts_ocursor->row = 0;
+		pty->ts_ocursor->col = 0;
+		write(master->ptyfd, s, strlen(s));
+		write(master->ptyfd, "\n", 1);
+		return;
+	}
+
 	if (pty->pid > 0) {
+		while (pty->n_slaves)
+			pty_remove_slave(pty,
+			    pty->slaves[pty->n_slaves-1]);
+
 		remove_event_source(pty->ptyfd);
 		close(pty->ptyfd);
 		pty->ptyfd = -1;
@@ -247,13 +281,15 @@ pty_submit_command(const char *s, void *udata)
 static int
 pty_create_cmd(struct pty *pty)
 {
+	extern struct dpy *dpy;
+
 	if ((pty->cmd_buffer = buffer_create()) == NULL)
 		return -1;
 
 	if ((pty->cmd_cursor = buffer_cursor_create(pty->cmd_buffer)) == NULL)
 		return -1;
 
-	if ((pty->cmd_editor = editor_create(pty->dpy,
+	if ((pty->cmd_editor = editor_create(dpy,
 	    pty->cmd_cursor,
 	    pty_submit_command, pty, COLOR_TITLE_BG_NORMAL, 1,
 	    "cmd_editor", WIDGET(pty->hbox))) == NULL)
@@ -266,6 +302,8 @@ pty_create_cmd(struct pty *pty)
 static int
 pty_create_ts(struct pty *pty)
 {
+	extern struct dpy *dpy;
+
 	if ((pty->ts_buffer = buffer_create()) == NULL)
 		return -1;
 	if ((pty->ts_icursor = buffer_cursor_create(pty->ts_buffer)) == NULL)
@@ -273,7 +311,7 @@ pty_create_ts(struct pty *pty)
 	if ((pty->ts_ocursor = buffer_cursor_create(pty->ts_buffer)) == NULL)
 		return -1;
 
-	if ((pty->ts_editor = editor_create(pty->dpy,
+	if ((pty->ts_editor = editor_create(dpy,
 	    pty->ts_icursor,
 	    pty_submit_stdin, pty, COLOR_TEXT_BG, -1, "ts_editor",
 	    pty->widget)) == NULL)
@@ -283,9 +321,74 @@ pty_create_ts(struct pty *pty)
 	return 0;
 }
 
+static int
+pty_add_slave(struct pty *pty, struct pty *slave)
+{
+	void *tmp;
+	size_t sz;
+
+	if (pty->n_slaves == pty->max_slaves) {
+		sz = (pty->max_slaves+1) * sizeof(struct pty *);
+		tmp = realloc(pty->slaves, sz);
+		if (tmp == NULL)
+			return -1;
+		pty->slaves = tmp;
+		pty->max_slaves++;
+	}
+
+	pty->slaves[pty->n_slaves++] = slave;
+	slave->master = pty;
+	pty->active_slave = slave;
+
+	return 0;
+}
+
+static int
+pty_find_slave(struct pty *pty, struct pty *slave)
+{
+	int i;
+
+	for (i = 0; i < pty->n_slaves; i++)
+		if (pty->slaves[i] == slave)
+			return i;
+
+	return -1;
+}
+
+static void
+pty_remove_slave(struct pty *pty, struct pty *slave)
+{
+	int i;
+	void *dst, *src;
+	size_t len;
+
+	if ((i = pty_find_slave(pty, slave)) == -1) {
+		warnx("did not find slave %lx", (intptr_t) slave);
+		return;
+	}
+
+	if (pty->active_slave == slave)
+		pty->active_slave = NULL;
+	slave->master = NULL;
+
+	if (i+1 < pty->n_slaves) {
+		dst = pty->slaves[i];
+		src = pty->slaves[i+1];
+		len = (pty->n_slaves-i-1) * sizeof(struct pty *);
+		memmove(dst, src, len);
+	}
+	pty->n_slaves--;
+}
+
 void
 pty_free(struct pty *pty)
 {
+	while (pty->n_slaves)
+		pty_remove_slave(pty, pty->slaves[pty->n_slaves-1]);
+
+	if (pty->master != NULL)
+		pty_remove_slave(pty->master, pty);
+
 	if (pty->ptyfd != -1) {
 		remove_event_source(pty->ptyfd);
 		close(pty->ptyfd);

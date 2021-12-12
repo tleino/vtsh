@@ -25,7 +25,6 @@ struct editor;
 struct widget;
 
 struct pty {
-	struct dpy *dpy;
 	struct widget *parent;
 	struct widget *widget;
 
@@ -46,9 +45,15 @@ struct pty {
 
 	struct statbar *statbar;
 	struct label *cwd;
+
+	struct pty *master;
+	struct pty **slaves;
+	struct pty *active_slave;
+	int n_slaves;
+	int max_slaves;
 };
 
-struct pty	*pty_create(struct dpy *, const char *, struct widget *);
+struct pty	*pty_create(struct pty *, const char *, struct widget *);
 void		 pty_free(struct pty *);
 
 #endif

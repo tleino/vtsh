@@ -280,6 +280,7 @@ pty_submit_command(const char *s, void *udata)
 		 */
 		setenv("TERM", "dumb", 1);
 		setenv("PS1", "\\$ ", 1);
+		setenv("PAGER", "cat", 1);
 		if (execlp(sh, sh, "-c", s, NULL) == -1)
 			err(1, "execlp");
 	}

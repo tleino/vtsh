@@ -300,7 +300,44 @@ editor_mousepress(XButtonEvent *e, void *udata)
 	struct editor *editor = udata;
 
 	widget_focus(WIDGET(editor));
-	return 0;
+
+	switch (e->button) {
+	case 4:
+	case 5:
+		editor_draw_cursor(editor, editor->cursor, 1);
+		if (editor->ocursor) {
+			if (editor->cursor->row == editor->ocursor->row &&
+			    editor->cursor->col == editor->ocursor->col)
+				editor_draw_cursor(editor, editor->ocursor, 0);
+		}
+		break;
+	}
+
+	switch (e->button) {
+	case 4:
+		buffer_update_cursor(editor->buffer, editor->cursor,
+		    -(1 + (editor->bottom_row - editor->top_row)), 0);
+		break;
+	case 5:
+		buffer_update_cursor(editor->buffer, editor->cursor,
+		    1 + (editor->bottom_row - editor->top_row), 0);
+		break;
+	}
+
+	switch (e->button) {
+	case 4:
+	case 5:
+		editor_scroll_into_view(editor, editor->cursor->row,
+		    editor->cursor->col);
+		if (editor->ocursor &&
+		    (editor->cursor->row != editor->ocursor->row ||
+		    editor->cursor->col != editor->ocursor->col))
+			editor_draw_cursor(editor, editor->ocursor, 0);
+		editor_draw_cursor(editor, editor->cursor, 0);		
+		return 1;
+	}
+
+	return 1;
 }
 
 static int

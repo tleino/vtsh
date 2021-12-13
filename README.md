@@ -141,7 +141,9 @@ alternatively *Esc*.
 
 ### Editing
 * **Up** Move cursor up.
+* **Ctrl+p** Move cursor up (alternative).
 * **Down** Move cursor down.
+* **Ctrl+n** Move cursor down (alternative).
 * **Left** Move cursor left.
 * **Ctrl+b** Move cursor left (alternative).
 * **Right** Move cursor right.

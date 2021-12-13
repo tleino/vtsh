@@ -332,6 +332,12 @@ editor_keypress(XKeyEvent *e, void *udata)
 		case XK_f:
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, 1);
 			return 1;
+		case XK_p:
+			buffer_update_cursor(vc->buffer, vc->cursor, -1, 0);
+			return 1;
+		case XK_n:
+			buffer_update_cursor(vc->buffer, vc->cursor, 1, 0);
+			return 1;
 		case XK_d:
 			buffer_delete_char(vc->buffer, vc->cursor);
 			return 1;

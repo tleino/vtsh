@@ -28,7 +28,6 @@
 #include <stdio.h>
 
 #include <X11/XKBlib.h>
-//#include <X11/extensions/XKBrules.h>
 #include <X11/keysymdef.h>
 #include <X11/keysym.h>
 
@@ -44,6 +43,7 @@ static void	 editor_scroll_up(struct editor *, size_t);
 static void	 editor_expose(int, int, int, int, void *);
 static void	 editor_focus(int focused, void *);
 static int	 editor_keypress(XKeyEvent *, void *);
+static int	 editor_mousepress(XButtonEvent *, void *);
 static int	 editor_draw_cursor(struct editor *, struct cursor *, int);
 static void	 editor_update_geometry(void *);
 
@@ -237,6 +237,8 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 	    editor);
 	widget_set_keypress_callback(WIDGET(editor), editor_keypress,
 	    editor);
+	widget_set_mousepress_callback(WIDGET(editor), editor_mousepress,
+	    editor);
 
 	editor->gc = XCreateGC(DPY(dpy), WINDOW(editor), 0, NULL);
 
@@ -290,6 +292,15 @@ get_line_at_cursor(struct cursor *cursor, int begin_col)
 	buf[len] = '\0';
 
 	return buf;
+}
+
+static int
+editor_mousepress(XButtonEvent *e, void *udata)
+{
+	struct editor *editor = udata;
+
+	widget_focus(WIDGET(editor));
+	return 0;
 }
 
 static int

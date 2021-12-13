@@ -53,6 +53,7 @@ struct cursor	*buffer_cursor_create(struct buffer *);
 void		 buffer_cursor_free(struct cursor *);
 int		 buffer_insert(struct cursor *, const char *, size_t);
 void		 buffer_erase(struct buffer *, struct cursor *);
+void		 buffer_delete_char(struct buffer *, struct cursor *);
 void		 buffer_erase_eol(struct buffer *, struct cursor *);
 void		 buffer_remove_row(struct buffer *, int);
 

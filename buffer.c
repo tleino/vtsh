@@ -420,6 +420,46 @@ buffer_erase_eol(struct buffer *buffer, struct cursor *cursor)
 }
 
 void
+buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
+{
+	void *dst, *src;
+	size_t len, i;
+
+	buffer_restrain_cursor(buffer, cursor);
+
+	if (cursor->col == buffer->rows[cursor->row].n_cols) {
+		/*
+		 * Join head of this line to the line below this.
+		 */
+		if (cursor->row+1 < buffer->n_rows)
+			for (i = 0; i < buffer->rows[cursor->row].n_cols; i++)
+				buffer_insert_char(buffer,
+				    cursor->row+1, INT_MAX,
+				    buffer->rows[cursor->row].cols[i]);
+
+		buffer_remove_row(buffer, cursor->row);
+		buffer_restrain_cursor(buffer, cursor);
+		return;
+	}
+
+	if (cursor->col+1 < buffer->rows[cursor->row].n_cols) {
+		dst = &buffer->rows[cursor->row].cols[cursor->col];
+		src = &buffer->rows[cursor->row].cols[cursor->col+1];
+		len = (buffer->rows[cursor->row].n_cols - cursor->col) *
+		    sizeof(wchar_t);
+		memmove(dst, src, len);
+	}
+
+	if (buffer->rows[cursor->row].n_cols > 0)
+		buffer->rows[cursor->row].n_cols--;
+
+	buffer_restrain_cursor(buffer, cursor);
+
+	broadcast_update(cursor->buffer, cursor->row, cursor->col,
+	    cursor->row, cursor->col, BUFFER_UPDATE_LINE);	
+}
+
+void
 buffer_erase(struct buffer *buffer, struct cursor *cursor)
 {
 	int i;

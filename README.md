@@ -143,11 +143,15 @@ alternatively *Esc*.
 * **Up** Move cursor up.
 * **Down** Move cursor down.
 * **Left** Move cursor left.
+* **Ctrl+b** Move cursor left (alternative).
 * **Right** Move cursor right.
+* **Ctrl+f** Move cursor right (alternative).
 * **Enter** Add line or execute command / send stdin.
 * **Ctrl+a** Move to beginning of line.
 * **Ctrl+e** Move to end of line.
 * **Ctrl+k** Kill to end of line (or remove line if line is empty).
+* **Ctrl+d** Delete character under cursor.
+* **Backspace** Delete character on the left.
 
 ### Misc
 * **Alt+q** Quit.

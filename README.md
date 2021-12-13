@@ -140,14 +140,12 @@ alternatively *Esc*.
 * **Alt+h** Hide/show buffer.
 
 ### Editing
-* **Up** Move cursor up.
-* **Ctrl+p** Move cursor up (alternative).
-* **Down** Move cursor down.
-* **Ctrl+n** Move cursor down (alternative).
-* **Left** Move cursor left.
-* **Ctrl+b** Move cursor left (alternative).
-* **Right** Move cursor right.
-* **Ctrl+f** Move cursor right (alternative).
+
+The bindings here are loosely-based on Emacs bindings.
+
+* **Up/Down/Left/Right** Move cursor up/down/left/right.
+* **Ctrl+p/n/b/f** Move cursor up/down/left/right (alternative).
+* **Shift+Up/Down/Left/Right** Move cursor by 8 characters (in future will move by one word or one paragraph).
 * **Enter** Add line or execute command / send stdin.
 * **Ctrl+a** Move to beginning of line.
 * **Ctrl+e** Move to end of line.

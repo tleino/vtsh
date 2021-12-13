@@ -410,16 +410,28 @@ editor_keypress(XKeyEvent *e, void *udata)
 		}
 		return 1;
 	case XK_Left:
-		buffer_update_cursor(vc->buffer, vc->cursor, 0, -1);
+		if (e->state & ShiftMask)
+			buffer_update_cursor(vc->buffer, vc->cursor, 0, -8);
+		else
+			buffer_update_cursor(vc->buffer, vc->cursor, 0, -1);
 		break;
 	case XK_Right:
-		buffer_update_cursor(vc->buffer, vc->cursor, 0, 1);
+		if (e->state & ShiftMask)
+			buffer_update_cursor(vc->buffer, vc->cursor, 0, 8);
+		else
+			buffer_update_cursor(vc->buffer, vc->cursor, 0, 1);
 		break;
 	case XK_Up:
-		buffer_update_cursor(vc->buffer, vc->cursor, -1, 0);
+		if (e->state & ShiftMask)
+			buffer_update_cursor(vc->buffer, vc->cursor, -8, 0);
+		else
+			buffer_update_cursor(vc->buffer, vc->cursor, -1, 0);
 		break;
 	case XK_Down:
-		buffer_update_cursor(vc->buffer, vc->cursor, 1, 0);
+		if (e->state & ShiftMask)
+			buffer_update_cursor(vc->buffer, vc->cursor, 8, 0);
+		else
+			buffer_update_cursor(vc->buffer, vc->cursor, 1, 0);
 		break;
 	case XK_Page_Up:
 		buffer_update_cursor(vc->buffer, vc->cursor,

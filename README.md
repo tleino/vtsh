@@ -153,6 +153,7 @@ alternatively *Esc*.
 * **Ctrl+e** Move to end of line.
 * **Ctrl+k** Kill to end of line (or remove line if line is empty).
 * **Ctrl+d** Delete character under cursor.
+* **Ctrl+l** Recenter.
 * **Backspace** Delete character on the left.
 
 ### Misc

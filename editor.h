@@ -43,8 +43,8 @@ struct editor {
 	int			 max_rows;
 	struct dpy		*dpy;
 	int			 old_height;
-	size_t			 top_row;
-	size_t			 bottom_row;
+	int			 top_row;
+	int			 bottom_row;
 	size_t			 begin_colx;	/* TODO */
 	size_t			 begin_col;
 

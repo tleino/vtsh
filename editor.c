@@ -302,6 +302,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 	int row, col;
 	char *line;
 	size_t len;
+	int diff;
 
 	sym = XkbKeycodeToKeysym(DPY(vc->dpy), e->keycode, 0,
 	    (e->state & ShiftMask) ? 1 : 0);
@@ -340,6 +341,19 @@ editor_keypress(XKeyEvent *e, void *udata)
 			return 1;
 		case XK_d:
 			buffer_delete_char(vc->buffer, vc->cursor);
+			return 1;
+		case XK_l:
+			diff = vc->cursor->row -
+			    ((vc->top_row + vc->bottom_row) / 2);
+			if (vc->top_row + diff <= 0)
+				return 1;
+
+			vc->top_row += diff;
+			vc->bottom_row += diff;
+			if (diff < 0)
+				editor_scroll_up(vc, -diff);
+			else
+				editor_scroll_down(vc, diff);
 			return 1;
 		}
 	}

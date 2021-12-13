@@ -342,6 +342,14 @@ editor_keypress(XKeyEvent *e, void *udata)
 		case XK_d:
 			buffer_delete_char(vc->buffer, vc->cursor);
 			return 1;
+		case XK_o:
+			row = vc->cursor->row;
+			col = vc->cursor->col;
+			buffer_insert(vc->cursor, "\n", 1);
+			vc->cursor->row = row;
+			vc->cursor->col = col;
+			editor_draw_cursor(vc, vc->cursor, 0);
+			return 1;
 		case XK_l:
 			diff = vc->cursor->row -
 			    ((vc->top_row + vc->bottom_row) / 2);

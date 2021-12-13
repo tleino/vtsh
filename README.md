@@ -154,6 +154,7 @@ alternatively *Esc*.
 * **Ctrl+k** Kill to end of line (or remove line if line is empty).
 * **Ctrl+d** Delete character under cursor.
 * **Ctrl+l** Recenter.
+* **Ctrl+o** Open line.
 * **Backspace** Delete character on the left.
 
 ### Misc

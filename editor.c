@@ -46,6 +46,8 @@ static int	 editor_keypress(XKeyEvent *, void *);
 static int	 editor_mousepress(XButtonEvent *, void *);
 static int	 editor_draw_cursor(struct editor *, struct cursor *, int);
 static void	 editor_update_geometry(void *);
+static void	 editor_find_cursor_pos(struct editor *, XButtonEvent *,
+		    int *, int *);
 
 static void
 editor_update_geometry(void *udata)
@@ -294,14 +296,52 @@ get_line_at_cursor(struct cursor *cursor, int begin_col)
 	return buf;
 }
 
+static void
+editor_find_cursor_pos(struct editor *editor, XButtonEvent *e, int *row,
+    int *col)
+{
+	XGlyphInfo extents;
+	int x;
+	wchar_t ch;
+
+	*row = (WIDGET_HEIGHT(editor) / font_height()) -
+	    ((WIDGET_HEIGHT(editor) - e->y) / font_height());
+	(*row)--;
+	*row += editor->top_row;
+
+	x = 100;
+	*col = 0;
+	while (x < e->x) {
+		ch = buffer_at(editor->buffer, *row, (*col)++);
+		if (ch == '\0')
+			ch = ' ';
+
+		font_extents_wc(&ch, 1, &extents);
+		x += extents.xOff;
+	}
+	(*col)--;
+	if (*col < 0)
+		*col = 0;
+	if (*row < 0)
+		*row = 0;
+}
+
 static int
 editor_mousepress(XButtonEvent *e, void *udata)
 {
 	struct editor *editor = udata;
+	int row, col;
 
 	widget_focus(WIDGET(editor));
 
 	switch (e->button) {
+	case 1:
+		editor_draw_cursor(editor, editor->cursor, 1);
+		editor_find_cursor_pos(editor, e, &row, &col);
+		editor->cursor->row = row;
+		editor->cursor->col = col;
+		editor_draw_cursor(editor, editor->cursor, 0);
+		return 1;
 	case 4:
 	case 5:
 		editor_draw_cursor(editor, editor->cursor, 1);

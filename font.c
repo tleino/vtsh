@@ -39,6 +39,9 @@ extern struct dpy *dpy;
 
 static XftFont	*font_load(int);
 static void	 font_set_color(XftColor *, int);
+static int	 _font_draw(Window, int, int, const char *, size_t);
+
+#define TABWIDTH 4
 
 static void
 font_set_color(XftColor *ftcolor, int color)
@@ -78,6 +81,14 @@ font_height()
 	return current_font->height;	
 }
 
+int
+font_width()
+{
+	assert(current_font != NULL);
+
+	return current_font->max_advance_width;
+}
+
 void
 font_set(int id)
 {
@@ -94,6 +105,49 @@ font_extents(const char *text, size_t len, XGlyphInfo *extents)
 {
 	XftTextExtentsUtf8(DPY(dpy), current_font,
 	    (const FcChar8 *) text, len, extents);
+}
+
+int
+font_str_width(int x, const char *text, size_t len)
+{
+	XGlyphInfo extents;
+	size_t i, j;
+	int x_out;
+
+	x_out = 0;
+	j = 0;
+	for (i = 0; i < len; i++) {
+		if (text[i] == '\t') {
+			if (j!=i) {
+				font_extents(&text[j], i-j, &extents);
+				x_out += extents.xOff;
+			}
+			j=i+1;
+			x_out += font_width() * TABWIDTH;
+		}
+	}
+	if (j < len) {
+		font_extents(&text[j], i-j, &extents);
+		x_out += extents.xOff;
+	}
+	return x_out;
+	
+}
+
+int
+font_str_width_wc(int x, const wchar_t *text, size_t len)
+{
+	char s[4096];
+	wchar_t wcs[4096];
+	size_t i, n;
+
+	for (i = 0; i < len; i++)
+		wcs[i] = text[i];
+	wcs[len] = 0;
+	if ((n = wcstombs(s, wcs, sizeof(s)) > 0))
+		return font_str_width(x, s, strlen(s));
+	else
+		return 0;
 }
 
 void
@@ -119,8 +173,8 @@ font_clear(Window window, int x, int y, int width)
 	XftDrawRect(ftdraw, &bgcolor, x, y, width, current_font->height);
 }
 
-int
-font_draw(Window window, int x, int y, const char *text, size_t len)
+static int
+_font_draw(Window window, int x, int y, const char *text, size_t len)
 {
 	XGlyphInfo extents;
 
@@ -143,6 +197,32 @@ font_draw(Window window, int x, int y, const char *text, size_t len)
 	    y + current_font->ascent, (const FcChar8 *) text, len);
 
 	return extents.xOff;
+}
+
+int
+font_draw(Window window, int x, int y, const char *text, size_t len)
+{
+	size_t i, j;
+	int x_out;
+
+	x_out = 0;
+	j = 0;
+	for (i = 0; i < len; i++) {
+		if (text[i] == '\t') {
+			if (j!=i)
+				x_out += _font_draw(window, x+x_out, y,
+				    &text[j], i-j);
+
+			j=i+1;
+
+			font_clear(window, x+x_out, y,
+			    font_width() * TABWIDTH);
+			x_out += font_width() * TABWIDTH;
+		}
+	}
+	if (j < len)
+		x_out += _font_draw(window, x+x_out, y, &text[j], i-j);
+	return x_out;
 }
 
 int

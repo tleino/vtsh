@@ -116,7 +116,6 @@ editor_draw_cursor(struct editor *editor, struct cursor *cursor, int clear)
 	int x, y;
 	wchar_t ch;
 	struct buffer *buffer;
-	XGlyphInfo extents;
 	size_t len;
 	static char dst[4096];
 
@@ -144,8 +143,7 @@ editor_draw_cursor(struct editor *editor, struct cursor *cursor, int clear)
 	if (ch == '\0')
 		ch = ' ';
 
-	font_extents(dst, len, &extents);
-	x += extents.xOff;
+	x += font_str_width(x-100, dst, len);
 
 	font_draw_wc(editor->window, x, y, &ch, 1);
 	XFlush(DPY(editor->dpy));
@@ -306,7 +304,6 @@ static void
 editor_find_cursor_pos(struct editor *editor, XButtonEvent *e, int *row,
     int *col)
 {
-	XGlyphInfo extents;
 	int x;
 	wchar_t ch;
 
@@ -319,8 +316,7 @@ editor_find_cursor_pos(struct editor *editor, XButtonEvent *e, int *row,
 		ch = buffer_at(editor->buffer, *row, ++(*col));
 		if (ch == '\0')
 			ch = ' ';
-		font_extents_wc(&ch, 1, &extents);
-		x += extents.xOff;
+		x += font_str_width_wc(x, &ch, 1);
 	} while (x < e->x);
 }
 

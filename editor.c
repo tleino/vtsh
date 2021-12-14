@@ -316,7 +316,7 @@ editor_find_cursor_pos(struct editor *editor, XButtonEvent *e, int *row,
 		ch = buffer_at(editor->buffer, *row, ++(*col));
 		if (ch == '\0')
 			ch = ' ';
-		x += font_str_width_wc(x, &ch, 1);
+		x += font_str_width_wc(x-100, &ch, 1);
 	} while (x < e->x);
 }
 

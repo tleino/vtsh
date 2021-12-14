@@ -113,6 +113,7 @@ font_str_width(int x, const char *text, size_t len)
 	XGlyphInfo extents;
 	size_t i, j;
 	int x_out;
+	int tabwidth, tabstop, remaining;
 
 	x_out = 0;
 	j = 0;
@@ -123,7 +124,13 @@ font_str_width(int x, const char *text, size_t len)
 				x_out += extents.xOff;
 			}
 			j=i+1;
-			x_out += font_width() * TABWIDTH;
+
+			tabwidth = font_width() * TABWIDTH;
+			tabstop = ((x+x_out) / tabwidth);
+			remaining = tabwidth - ((x+x_out) -
+			    (tabstop * tabwidth));
+
+			x_out += remaining;
 		}
 	}
 	if (j < len) {
@@ -203,7 +210,7 @@ int
 font_draw(Window window, int x, int y, const char *text, size_t len)
 {
 	size_t i, j;
-	int x_out;
+	int x_out, tabstop, tabwidth, remaining;
 
 	x_out = 0;
 	j = 0;
@@ -215,9 +222,18 @@ font_draw(Window window, int x, int y, const char *text, size_t len)
 
 			j=i+1;
 
-			font_clear(window, x+x_out, y,
-			    font_width() * TABWIDTH);
-			x_out += font_width() * TABWIDTH;
+			/*
+			 * TODO: Remove '-100' which is a hack for editor.c
+			 *       that can be removed when the linenumbers
+			 *       are moved to their own window or similar
+			 *       system.
+			 */
+			tabwidth = font_width() * TABWIDTH;
+			tabstop = ((x+x_out-100) / tabwidth);
+			remaining = tabwidth - ((x+x_out-100) -
+			    (tabstop * tabwidth));
+			font_clear(window, x+x_out, y, remaining);
+			x_out += remaining;
 		}
 	}
 	if (j < len)

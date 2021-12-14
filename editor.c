@@ -635,7 +635,10 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 		else
 			font_set_fgcolor(COLOR_TEXT_FG);
 
-		snprintf(lineno, sizeof(lineno), "%zu", i + 1);
+		if (i % (WIDGET_HEIGHT(editor) / font_height()) == 0)
+			snprintf(lineno, sizeof(lineno), "%zu->", i + 1);
+		else
+			snprintf(lineno, sizeof(lineno), "%zu", i + 1);
 		x += font_draw(editor->window, x, y, lineno, strlen(lineno));
 		font_clear(editor->window, x, y, 100 - x);
 	}

@@ -285,6 +285,28 @@ buffer_insert_row(struct buffer *buffer, int row)
 }
 
 void
+buffer_set_cursor(struct buffer *buffer, struct cursor *cursor, int row,
+    int col)
+{
+	int old_row, old_col;
+
+	buffer_restrain_cursor(buffer, cursor);
+
+	old_row = cursor->row;
+	old_col = cursor->col;
+	cursor->row = row;
+	cursor->col = col;
+	buffer_restrain_cursor(buffer, cursor);
+
+	broadcast_update(buffer, old_row, old_col, old_row, old_col,
+	    BUFFER_UPDATE_LINE);
+
+	buffer_restrain_cursor(buffer, cursor);
+	broadcast_update(buffer, cursor->row, cursor->col, cursor->row,
+	    cursor->col, BUFFER_UPDATE_LINE);
+}
+
+void
 buffer_update_cursor(
 	struct buffer *buffer,
 	struct cursor *cursor,

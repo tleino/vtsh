@@ -48,6 +48,8 @@ static int	 editor_draw_cursor(struct editor *, struct cursor *, int);
 static void	 editor_update_geometry(void *);
 static void	 editor_find_cursor_pos(struct editor *, XButtonEvent *,
 		    int *, int *);
+static void	 editor_page_up(struct editor *);
+static void	 editor_page_down(struct editor *);
 
 static void
 editor_update_geometry(void *udata)
@@ -154,6 +156,9 @@ static void
 editor_focus(int focused, void *udata)
 {
 	struct editor *editor = udata;
+
+	if (editor->focused == focused)
+		return;
 
 	editor->focused = focused;
 	if (editor->ocursor)
@@ -318,6 +323,54 @@ editor_find_cursor_pos(struct editor *editor, XButtonEvent *e, int *row,
 	} while (x < e->x);
 }
 
+static void
+editor_page_up(struct editor *vc)
+{
+	int rows, page;
+
+	rows = WIDGET_HEIGHT(vc) / font_height();
+	page = vc->cursor->row / rows;
+
+	if (vc->cursor->row != vc->top_row) {
+		buffer_set_cursor(vc->buffer, vc->cursor, vc->top_row, 0);
+		return;
+	}
+
+	if (page > 0) {
+		page--;
+		vc->top_row = page * rows;
+		assert(rows >= 1);
+		vc->bottom_row = vc->top_row + (rows-1);
+	}
+
+	buffer_set_cursor(vc->buffer, vc->cursor, vc->top_row, 0);
+	editor_draw(vc, vc->top_row, vc->bottom_row);
+}
+
+static void
+editor_page_down(struct editor *vc)
+{
+	int rows, page;
+
+	if (vc->cursor->row != vc->bottom_row) {
+		buffer_set_cursor(vc->buffer, vc->cursor, vc->bottom_row, 0);
+		return;
+	}
+
+	rows = WIDGET_HEIGHT(vc) / font_height();
+	page = vc->cursor->row / rows;
+
+	if ((page+1) * rows < buffer_rows(vc->buffer)) {
+		page++;
+		vc->top_row = page * rows;
+		assert(rows >= 1);
+		vc->bottom_row = vc->top_row + (rows-1);
+	}
+
+	buffer_set_cursor(vc->buffer, vc->cursor, vc->bottom_row, 0);
+	editor_draw(vc, vc->top_row, vc->bottom_row);
+}
+
 static int
 editor_mousepress(XButtonEvent *e, void *udata)
 {
@@ -335,37 +388,10 @@ editor_mousepress(XButtonEvent *e, void *udata)
 		editor_draw_cursor(editor, editor->cursor, 0);
 		return 1;
 	case 4:
+		editor_page_up(editor);
+		return 1;
 	case 5:
-		editor_draw_cursor(editor, editor->cursor, 1);
-		if (editor->ocursor) {
-			if (editor->cursor->row == editor->ocursor->row &&
-			    editor->cursor->col == editor->ocursor->col)
-				editor_draw_cursor(editor, editor->ocursor, 0);
-		}
-		break;
-	}
-
-	switch (e->button) {
-	case 4:
-		buffer_update_cursor(editor->buffer, editor->cursor,
-		    -(1 + (editor->bottom_row - editor->top_row)), 0);
-		break;
-	case 5:
-		buffer_update_cursor(editor->buffer, editor->cursor,
-		    1 + (editor->bottom_row - editor->top_row), 0);
-		break;
-	}
-
-	switch (e->button) {
-	case 4:
-	case 5:
-		editor_scroll_into_view(editor, editor->cursor->row,
-		    editor->cursor->col);
-		if (editor->ocursor &&
-		    (editor->cursor->row != editor->ocursor->row ||
-		    editor->cursor->col != editor->ocursor->col))
-			editor_draw_cursor(editor, editor->ocursor, 0);
-		editor_draw_cursor(editor, editor->cursor, 0);		
+		editor_page_down(editor);
 		return 1;
 	}
 
@@ -451,8 +477,6 @@ editor_keypress(XKeyEvent *e, void *udata)
 	case XK_Right:
 	case XK_Up:
 	case XK_Down:
-	case XK_Page_Up:
-	case XK_Page_Down:
 		editor_draw_cursor(vc, vc->cursor, 1);
 		if (vc->ocursor) {
 			if (vc->cursor->row == vc->ocursor->row &&
@@ -514,13 +538,11 @@ editor_keypress(XKeyEvent *e, void *udata)
 			buffer_update_cursor(vc->buffer, vc->cursor, 1, 0);
 		break;
 	case XK_Page_Up:
-		buffer_update_cursor(vc->buffer, vc->cursor,
-		    -(1 + (vc->bottom_row - vc->top_row)), 0);
-		break;
+		editor_page_up(vc);
+		return 1;
 	case XK_Page_Down:
-		buffer_update_cursor(vc->buffer, vc->cursor,
-		    1 + (vc->bottom_row - vc->top_row), 0);
-		break;
+		editor_page_down(vc);
+		return 1;
 	case XK_BackSpace:
 		buffer_erase(vc->buffer, vc->cursor);
 		return 1;
@@ -533,8 +555,6 @@ editor_keypress(XKeyEvent *e, void *udata)
 	case XK_Right:
 	case XK_Up:
 	case XK_Down:
-	case XK_Page_Up:
-	case XK_Page_Down:
 		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		if (vc->ocursor && (vc->cursor->row != vc->ocursor->row ||
 		    vc->cursor->col != vc->ocursor->col))
@@ -619,30 +639,48 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 		else
 			font_set_fgcolor(COLOR_TEXT_FG);
 
-		snprintf(lineno, sizeof(lineno), "%03zu", i + 1);
-		font_draw(editor->window, x, y, lineno, strlen(lineno));
+		snprintf(lineno, sizeof(lineno), "%zu", i + 1);
+		x += font_draw(editor->window, x, y, lineno, strlen(lineno));
+		font_clear(editor->window, x, y, 100 - x);
 	}
 
 	font_set_bgcolor(editor->bgcolor);
 	font_set_fgcolor(COLOR_TEXT_FG);
-	for (i = from; i <= to && i < rows; i++) {
+	for (i = from; i <= to; i++) {
 		if (i < editor->top_row)
 			continue;
 		if (i > editor->bottom_row)
 			continue;
 
-		len = buffer_u8str_at(editor->buffer, i, 0, -1, dst,
-		    sizeof(dst));
 		x = 100;
 		y = (i - editor->top_row) * font_height();
+		if (i < rows) {
+			len = buffer_u8str_at(editor->buffer, i, 0, -1, dst,
+			    sizeof(dst));
 
-		x += font_draw(editor->window, x, y, dst, len);
+			x += font_draw(editor->window, x, y, dst, len);
+			font_clear(editor->window, x, y,
+			    WIDGET_WIDTH(editor) - x);
+		}
 		font_clear(editor->window, x, y, WIDGET_WIDTH(editor) - x);
 	}
 
 	if (editor->ocursor)
 		editor_draw_cursor(editor, editor->ocursor, 0);
+
 	editor_draw_cursor(editor, editor->cursor, 0);
+
+	/*
+	 * TODO: Do this only when necessary e.g. clear the remaining
+	 *       area that was too small for a full height text line at
+	 *       the bottom. It is not necessary when only updating one
+	 *       line.
+	 */
+	y = (WIDGET_HEIGHT(editor) / font_height()) * font_height();
+	if (y < WIDGET_HEIGHT(editor))
+		XClearArea(DPY(editor->dpy), WIDGET(editor)->window, 0,
+		    y, WIDGET_WIDTH(editor), WIDGET_HEIGHT(editor) - y, False);
+
 	XFlush(DPY(editor->dpy));
 }
 

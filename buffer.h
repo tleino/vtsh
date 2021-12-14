@@ -59,6 +59,8 @@ void		 buffer_remove_row(struct buffer *, int);
 
 void		 buffer_update_cursor(struct buffer *, struct cursor *,
 		    int, int);
+void		 buffer_set_cursor(struct buffer *, struct cursor *,
+		    int, int);
 void		 buffer_clear_row(struct buffer *, int);
 
 size_t		 buffer_cols(struct buffer *, size_t);

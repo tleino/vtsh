@@ -50,6 +50,7 @@ static void	 editor_find_cursor_pos(struct editor *, XButtonEvent *,
 		    int *, int *);
 static void	 editor_page_up(struct editor *);
 static void	 editor_page_down(struct editor *);
+static int	 editor_row_is_visible(struct editor *, int);
 
 static void
 editor_update_geometry(void *udata)
@@ -323,6 +324,15 @@ editor_find_cursor_pos(struct editor *editor, XButtonEvent *e, int *row,
 	} while (x < e->x);
 }
 
+static int
+editor_row_is_visible(struct editor *vc, int row)
+{
+	if (row >= vc->top_row && row <= vc->bottom_row)
+		return 1;
+
+	return 0;
+}
+
 static void
 editor_page_up(struct editor *vc)
 {
@@ -331,17 +341,19 @@ editor_page_up(struct editor *vc)
 	rows = WIDGET_HEIGHT(vc) / font_height();
 	page = vc->cursor->row / rows;
 
-	if (vc->cursor->row != page * rows) {
+	if (vc->cursor->row != page * rows &&
+	    editor_row_is_visible(vc, page * rows)) {
+		buffer_set_cursor(vc->buffer, vc->cursor, page * rows, 0);
+	} else {
+		if (page > 0)
+			page--;
+
 		vc->top_row = page * rows;
-	} else if (page > 0) {
-		page--;
-		vc->top_row = page * rows;
+		assert(rows > 0);
+		vc->bottom_row = vc->top_row + (rows-1);
+		buffer_set_cursor(vc->buffer, vc->cursor, vc->top_row, 0);
 	}
 
-	assert(rows >= 1);
-	vc->bottom_row = vc->top_row + (rows-1);
-
-	buffer_set_cursor(vc->buffer, vc->cursor, vc->top_row, 0);
 	editor_draw(vc, vc->top_row, vc->bottom_row);
 }
 
@@ -353,17 +365,18 @@ editor_page_down(struct editor *vc)
 	rows = WIDGET_HEIGHT(vc) / font_height();
 	page = vc->cursor->row / rows;
 
-	if (vc->cursor->row != page * rows + (rows-1)) {
-		vc->top_row = page * rows;
+	assert(rows > 0);
+	if (vc->cursor->row != page * rows + (rows-1) &&
+	    editor_row_is_visible(vc, page * rows + (rows-1))) {
+		buffer_set_cursor(vc->buffer, vc->cursor,
+		    page * rows + (rows-1), 0);
 	} else if ((page+1) * rows < buffer_rows(vc->buffer)) {
 		page++;
 		vc->top_row = page * rows;
+		vc->bottom_row = vc->top_row + (rows-1);
+		buffer_set_cursor(vc->buffer, vc->cursor, vc->bottom_row, 0);
 	}
 
-	assert(rows >= 1);
-	vc->bottom_row = vc->top_row + (rows-1);
-
-	buffer_set_cursor(vc->buffer, vc->cursor, vc->bottom_row, 0);
 	editor_draw(vc, vc->top_row, vc->bottom_row);
 }
 

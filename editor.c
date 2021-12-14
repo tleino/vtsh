@@ -360,16 +360,18 @@ editor_page_up(struct editor *vc)
 static void
 editor_page_down(struct editor *vc)
 {
-	int rows, page;
+	int rows, page, bottom;
 
 	rows = WIDGET_HEIGHT(vc) / font_height();
 	page = vc->cursor->row / rows;
 
 	assert(rows > 0);
-	if (vc->cursor->row != page * rows + (rows-1) &&
-	    editor_row_is_visible(vc, page * rows + (rows-1))) {
-		buffer_set_cursor(vc->buffer, vc->cursor,
-		    page * rows + (rows-1), 0);
+	bottom = page * rows + (rows-1);
+	if (bottom >= buffer_rows(vc->buffer))
+		bottom = buffer_rows(vc->buffer)-1;
+
+	if (vc->cursor->row != bottom && editor_row_is_visible(vc, bottom)) {
+		buffer_set_cursor(vc->buffer, vc->cursor, bottom, 0);
 	} else if ((page+1) * rows < buffer_rows(vc->buffer)) {
 		page++;
 		vc->top_row = page * rows;

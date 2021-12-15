@@ -178,12 +178,29 @@ dependencies such as C compiler and standard header files.
 	$ make
 	$ make install
 
-## Customize
+## Customize colors and fonts
 
-* Take a look at
+Take a look at
 [color.enums](https://github.com/tleino/vtsh/blob/main/color.enums) and
 [font.enums](https://github.com/tleino/vtsh/blob/main/font.enums), modify
 and recompile.
+
+*vtsh* supports both variable-width and fixed-width fonts (unlike *xterm*)
+and supports the fontconfig FcPattern syntax as well as the X Logical Font
+Description (XLFD).
+
+You could try fonts such as:
+* DejaVu Sans Mono:size=16.0
+* sans serif *(variable width)*
+* arial *(variable width)*
+* -xos4-terminus-medium-r-normal--28-280-72-72-c-140-iso10646-1 *(usually
+requires installing Terminus font package)*
+* -misc-fixed-medium-r-normal--20-200-75-75-c-100-iso10646-1
+
+These should be available in a modern X11 installation unless otherwise
+noted. Change sizes to taste. You could also have a look at
+[X Terminal TrueType Fonts](https://contented.qolc.net/articles/x-terminal-truetype-fonts/)
+article written by Jamm!n.
 
 (xrdb-compatible resources could be added later.)
 

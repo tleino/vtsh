@@ -8,6 +8,8 @@ buffer can be used for interacting with the backend program in a
 linear or non-linear fashion. It could also be thought *vtsh* means
 *vertical tabs of shells*.
 
+See the [screenshot](https://namhas.dev/vtsh.png).
+
 It also an exercise in taking the Unix philosophy to the extreme
 in the footsteps of e.g. [acme](http://acme.cat-v.org/)
 editor/user interface for

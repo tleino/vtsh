@@ -112,6 +112,14 @@ pty_toggle_hide_output(struct pty *pty)
 	}
 }
 
+void
+pty_hide_output(struct pty *pty)
+{
+	if (pty->ts_editor) {
+		widget_hide(WIDGET(pty->ts_editor));
+	}
+}
+
 static void
 pty_process_events(int ptyfd, void *udata)
 {

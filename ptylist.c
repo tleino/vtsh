@@ -190,6 +190,14 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 				ptylist_add_pty(ptylist, pty->master);
 		}
 		return 1;
+	case XK_H:
+		pty = ptylist_find_focus(ptylist);
+		for (i = 0; i < ptylist->n_ptys; i++) {
+			if (ptylist->ptys[i] == pty)
+				continue;
+			pty_hide_output(ptylist->ptys[i]);
+		}
+		return 1;
 	case XK_h:
 		pty = ptylist_find_focus(ptylist);
 		if (pty != NULL)

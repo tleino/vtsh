@@ -29,11 +29,12 @@
 
 #include "fontnames.c"
 
-static XftColor fgcolor;
-static XftColor bgcolor;
-static XftFont *ftfont[NUM_FONT];
-static XftFont *current_font;
-static XftDraw *ftdraw;
+static XftColor	 fgcolor;
+static XftColor	 bgcolor;
+static XftFont	*ftfont[NUM_FONT];
+static XftFont	*current_font;
+static int	 space_width;
+static XftDraw	*ftdraw;
 
 extern struct dpy *dpy;
 
@@ -41,7 +42,7 @@ static XftFont	*font_load(int);
 static void	 font_set_color(XftColor *, int);
 static int	 _font_draw(Window, int, int, const char *, size_t);
 
-#define TABWIDTH 4
+#define TABWIDTH 8
 
 static void
 font_set_color(XftColor *ftcolor, int color)
@@ -92,12 +93,21 @@ font_width()
 void
 font_set(int id)
 {
+	XGlyphInfo extents;
+
 	assert (id < NUM_FONT);
 
 	if (ftfont[id] == NULL)
 		ftfont[id] = font_load(id);
 
 	current_font = ftfont[id];
+
+	/*
+	 * Check the width of single space. This is useful for setting
+	 * the tab width.
+	 */
+	font_extents(" ", 1, &extents);
+	space_width = extents.xOff;
 }
 
 void
@@ -125,7 +135,7 @@ font_str_width(int x, const char *text, size_t len)
 			}
 			j=i+1;
 
-			tabwidth = font_width() * TABWIDTH;
+			tabwidth = space_width * TABWIDTH;
 			tabstop = ((x+x_out) / tabwidth);
 			remaining = tabwidth - ((x+x_out) -
 			    (tabstop * tabwidth));
@@ -228,7 +238,7 @@ font_draw(Window window, int x, int y, const char *text, size_t len)
 			 *       are moved to their own window or similar
 			 *       system.
 			 */
-			tabwidth = font_width() * TABWIDTH;
+			tabwidth = space_width * TABWIDTH;
 			tabstop = ((x+x_out-100) / tabwidth);
 			remaining = tabwidth - ((x+x_out-100) -
 			    (tabstop * tabwidth));

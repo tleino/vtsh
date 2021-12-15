@@ -228,6 +228,7 @@ pty_submit_command(const char *s, void *udata)
 		pty->ts_ocursor->col = 0;
 		write(master->ptyfd, s, strlen(s));
 		write(master->ptyfd, "\n", 1);
+		pty_show_output(pty);
 		return;
 	}
 
@@ -305,6 +306,8 @@ pty_submit_command(const char *s, void *udata)
 
 	statbar_update_status(pty->statbar, STATBAR_STATE_STARTED,
 	    pty->pid, status, buffer_rows(pty->ts_buffer));
+
+	pty_show_output(pty);
 }
 
 static int

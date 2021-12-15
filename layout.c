@@ -116,13 +116,11 @@ layout_update_geometry(void *udata)
 	struct layout *layout = udata;
 	int i;
 	int offset;
-	int equal, equal_surplus;
-	int surplus;
-	int n_need, d, add, n;
+	double equal, equal_surplus, surplus, d, add, n_need, n;
 	extern struct dpy *dpy;
 	unsigned int mask;
 	XWindowChanges changes;
-	int sides[100] = { 0 };	/* TODO: Make dynamic */
+	double sides[100] = { 0 };	/* TODO: Make dynamic */
 	int axis;
 
 	font_set(FONT_NORMAL);

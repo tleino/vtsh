@@ -236,7 +236,8 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 		return NULL;
 	editor->dpy = dpy;
 
-	editor->widget = widget_create(name, parent);
+	editor->widget = widget_create_colored(
+	    query_color(dpy, bgcolor).pixel, name, parent);
 	editor->widget->can_focus = 1;
 
 	widget_set_focus_change_callback(WIDGET(editor), editor_focus,

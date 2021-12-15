@@ -57,7 +57,8 @@ static void		 widget_focus_dir(struct widget *, FocusDir, int);
 static struct widget	*widget_find_focusable(struct widget *, FocusDir,
 			    int *, struct widget *, int);
 
-static struct widget	*_widget_create(int, const char *, struct widget *);
+static struct widget	*_widget_create(int, unsigned long, const char *,
+			    struct widget *);
 
 static void		 widget_notify_focus_change(struct widget *, int);
 
@@ -464,17 +465,31 @@ widget_set_update_prefer_callback(struct widget *widget,
 struct widget *
 widget_create_windowless(const char *name, struct widget *parent)
 {
-	return _widget_create(1, name, parent);
+	extern struct dpy *dpy;
+
+	return _widget_create(1, BlackPixel(DPY(dpy), DPY_SCREEN(dpy)),
+	    name, parent);
 }
 
 struct widget *
 widget_create(const char *name, struct widget *parent)
 {
-	return _widget_create(0, name, parent);
+	extern struct dpy *dpy;
+
+	return _widget_create(0, BlackPixel(DPY(dpy), DPY_SCREEN(dpy)),
+	    name, parent);
+}
+
+struct widget *
+widget_create_colored(unsigned long bgcolor, const char *name,
+    struct widget *parent)
+{
+	return _widget_create(0, bgcolor, name, parent);
 }
 
 static struct widget *
-_widget_create(int windowless, const char *name, struct widget *parent)
+_widget_create(int windowless, unsigned long bgcolor, const char *name,
+    struct widget *parent)
 {
 	struct widget *widget;
 	Window parent_window;
@@ -531,7 +546,7 @@ _widget_create(int windowless, const char *name, struct widget *parent)
 
 	widget->event_mask |= ButtonPressMask;
 
-	a.background_pixel = BlackPixel(DPY(dpy), DPY_SCREEN(dpy));
+	a.background_pixel = bgcolor;
 	a.backing_store = WhenMapped;
 	a.event_mask = widget->event_mask;
 	v = (CWEventMask | CWBackingStore | CWBackPixel);

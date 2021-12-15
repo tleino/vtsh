@@ -116,6 +116,8 @@ struct widget {
 
 struct widget	*widget_create(const char *, struct widget *);
 struct widget	*widget_create_windowless(const char *, struct widget *);
+struct widget	*widget_create_colored(unsigned long, const char *,
+		    struct widget *);
 void		 widget_free(struct widget *);
 
 void		 widget_show(struct widget *);

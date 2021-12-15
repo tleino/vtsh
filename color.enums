@@ -1,5 +1,5 @@
-TEXT_BG           black
-TEXT_FG           white
+TEXT_BG           #f5efe0
+TEXT_FG           black
 TEXT_CURSOR       red
 TEXT_OUTPUT_CURSOR green
 TEXT_LINENO       gray

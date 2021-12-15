@@ -140,7 +140,7 @@ alternatively *Esc*.
 * **Alt+Insert** Add new buffer (alternative binding).
 * **Alt+s** Add slave buffer (stdin will be send to master).
 * **Alt+h** Hide/show buffer.
-* **Shift+Alt+h** Hide other buffers.
+* **Shift+Alt+h** Hide other buffers (and show this if it was hidden).
 
 ### Editing
 

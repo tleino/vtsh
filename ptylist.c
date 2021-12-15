@@ -192,6 +192,7 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 		return 1;
 	case XK_H:
 		pty = ptylist_find_focus(ptylist);
+		pty_show_output(pty);
 		for (i = 0; i < ptylist->n_ptys; i++) {
 			if (ptylist->ptys[i] == pty)
 				continue;

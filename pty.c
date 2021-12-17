@@ -218,18 +218,48 @@ pty_submit_command(const char *s, void *udata)
 	char *sh;
 	struct pty *pty = udata, *master;
 	struct termios ts;
+	size_t len;
+	int i, send_ts;
+	size_t n;
+	char buf[4096];
+	char *delim = "\x04";
+
+	len = strlen(s);
+	send_ts = 0;
+	if (len >= 2 && s[len-2] == '<' && s[len-1] == '.') {
+		send_ts = 1;
+		len -= 2;
+		delim = ".\n";
+	} else if (len >= 1 && s[len-1] == '<') {
+		send_ts = 1;
+		len--;
+	}
 
 	master = pty->master;
 	if (master != NULL) {
 		master->active_slave = pty;
+
+		if (!send_ts || len > 0) {
+			write(master->ptyfd, s, len);
+			write(master->ptyfd, "\n", 1);
+		}
+
+		if (send_ts) {
+			for (i = 0; i < buffer_rows(pty->ts_buffer); i++) {
+				n = buffer_u8str_at(pty->ts_buffer,
+				    i, 0, -1, buf, sizeof(buf)-1);
+				buf[n] = '\0';
+				write(master->ptyfd, buf, n);
+				write(master->ptyfd, "\n", 1);
+			}
+			write(master->ptyfd, delim, strlen(delim));
+		}
 
 		buffer_clear(pty->ts_buffer);
 		pty->ts_icursor->row = 0;
 		pty->ts_icursor->col = 0;
 		pty->ts_ocursor->row = 0;
 		pty->ts_ocursor->col = 0;
-		write(master->ptyfd, s, strlen(s));
-		write(master->ptyfd, "\n", 1);
 		pty_show_output(pty);
 		return;
 	}
@@ -286,6 +316,8 @@ pty_submit_command(const char *s, void *udata)
 	ts.c_cflag = (CREAD | CS8 | HUPCL);
 	ts.c_cc[VMIN] = 1;
 	ts.c_cc[VTIME] = 0;
+	ts.c_cc[VEOF] = 0x04;
+	ts.c_cc[VINTR] = 0x03;
 	ts.c_ispeed = B115200;
 	ts.c_ospeed = B115200;
 

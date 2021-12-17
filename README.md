@@ -78,15 +78,21 @@ In a perfect world all text-based software would be implemented in a
 non-interactive stateless request-response form where one request
 results in one response. That way we'd have the greatest simplicity and
 composability, but in reality we have many types of text-based software:
-* stateless request-response (e.g. *curl* requests to
-HTTP REST API);
-* stateless request-response with a long-lived response stream (e.g. *iostat*
-configured to report status every second);
-* **use slave buffers:** stateful request-response stream (e.g. *sh*, *telnet*
-or *ed* session);
-* **use inline input:** asynchronous request-response stream that may send
-response at any random moment without a request (e.g. *sh* with background
-commands, *mqtt* session or a chat session).
+* stateless request-response;
+  * (e.g. *curl* requests to HTTP REST API)
+* stateless request-response with a long-lived response stream;
+  * (e.g. *iostat* configured to report status every second)
+* stateful request-response stream (**use slave buffers**);
+  * (e.g. *sh*, *telnet* or *ed* session)
+* asynchronous request-response stream that may send response at any
+random moment without a request (**use inline input**).
+  * (e.g. *sh* with background commands, *mqtt* session or a chat session)
+* request/response-input-response stream (**use buffer redirection**);
+  * (e.g. *ed* session that displays output, which is then modified
+and sent as standard input back as another request)
+
+(**Help wanted**: give ideas how to describe these different types with
+better wordings...)
 
 In addition to these, we have cursor-addressable text-based software such
 as *mutt*, *emacs* or *vi* but these will not be supported.
@@ -100,17 +106,42 @@ or without slave buffers. The slave buffers help when we have some state
 but the state is not very interesting e.g. when we're running a long-lived
 *ssh* session to a remote host.
 
+### Slave buffers
+
+Ctrl+S brings any number of slave buffers when an another slave buffer
+or an active command is focused.
+
+### Buffer redirection
+
+When a command name ends with '<' the output buffer (a.k.a. typescript
+buffer) is sent as standard input to the command regardless of whether
+it was a slave buffer. The standard ^D (0x04) a.k.a. EOF is used as the
+delimeter.
+
+(TODO: Buffer redirection works at the moment only with slave buffers.)
+
+If the command name ends with '<.' then the input is delimited with '.'
+i.e. this is useful with e.g. 'ed'.
+
+#### Examples
+
+	cat >/tmp/foobar<
+
+	ed README.md
+	1,10p
+	1,10c<.
+
 ## TODO
 
 * Add more standard features like more Emacs bindings to the editor
-  (it is quite barebones at the moment).
+  (what is missing is like copy/paste, search, etc.).
 * Bring the features from [iosplit](https://github.com/tleino/iosplit)
   to the editor such as overwriting previous command's output in an
   interactive session and launching new commands from a previous
   command's output (preliminary proof of concept is implemented, and
   a preliminary proof of concept is also implemented in form of slave
   buffers).
-* Add support for e.g. '<file' to the command bar, so that files can be
+* Add support for e.g. ':file' to the command bar, so that files can be
   edited and saved with ease.
 * Add support for some essential state such as current working directory
   that is necessary when not using an interactive shell session (current

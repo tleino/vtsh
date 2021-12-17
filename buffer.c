@@ -278,6 +278,10 @@ buffer_insert_row(struct buffer *buffer, int row)
 	memmove(&buffer->rows[row+1], &buffer->rows[row],
 	    (buffer->n_rows - row) * sizeof(*buffer->rows));
 
+	if (buffer->n_rows - row > 0)
+		broadcast_update(buffer, row, 0, buffer->n_rows-1, 0,
+		    BUFFER_UPDATE_LINE);
+
 	memset(&buffer->rows[row], '\0', sizeof(*buffer->rows));
 
 	buffer->n_rows++;
@@ -534,9 +538,10 @@ int
 buffer_insert(struct cursor *cursor, const char *data, size_t len)
 {
 	int row, col;
-	int n;
+	int i, n;
 	wchar_t wc;
 	int from_row, from_col, to_row, to_col;
+	struct buffer *buffer = cursor->buffer;
 
 	row = from_row = CURSOR_ROW(cursor);
 	col = from_col = CURSOR_COL(cursor);
@@ -546,13 +551,23 @@ buffer_insert(struct cursor *cursor, const char *data, size_t len)
 	while (len > 0) {
 		n = mbtowc(&wc, data, len);
 		/* TODO: Handle n==0 */
-		if (n <= 0 || wc == '\r')
+		if (n <= 0 || wc == (wchar_t) '\r')
 			n = 1;
-		else if (wc == '\n') {
+		else if (wc == (wchar_t) '\n') {
 			CURSOR_ROW(cursor)++;
 			if (buffer_insert_row(cursor->buffer,
 			    CURSOR_ROW(cursor)) == -1)
 				return -1;
+
+			for (i = cursor->col;
+			    i < buffer->rows[cursor->row-1].n_cols; i++)
+				buffer_insert_char(buffer,
+				    cursor->row, cursor->col-i,
+				    buffer->rows[cursor->row-1].cols[i]);
+
+			buffer->rows[cursor->row-1].n_cols -=
+			    (buffer->rows[cursor->row-1].n_cols - cursor->col);
+
 			CURSOR_COL(cursor) = 0;
 			row = CURSOR_ROW(cursor);
 			col = CURSOR_COL(cursor);

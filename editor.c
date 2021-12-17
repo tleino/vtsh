@@ -431,8 +431,6 @@ editor_keypress(XKeyEvent *e, void *udata)
 	char ch[4 + 1];
 	int n;
 	int row, col;
-	char *line;
-	size_t len;
 	int diff;
 
 	sym = XkbKeycodeToKeysym(DPY(vc->dpy), e->keycode, 0,
@@ -514,29 +512,11 @@ editor_keypress(XKeyEvent *e, void *udata)
 	switch (sym) {
 	case XK_KP_Enter:
 	case XK_Return:
-		if (vc->submit != NULL) {
-			if (vc->ocursor) {
-				vc->submit(get_line_at_cursor(vc->cursor,
-				    0), vc->submit_udata);
-			} else {
-				row = vc->cursor->row;
-				col = vc->cursor->col;
-				line = get_line_at_cursor(vc->cursor, 0);
-				len = strlen(line);
-
-				if (row+1 == buffer_rows(vc->buffer)) {
-					buffer_insert(vc->cursor, "\n", 1);
-					vc->cursor->row = row;
-					vc->cursor->col = col;
-				
-					editor_scroll_into_view(vc,
-					    vc->cursor->row, vc->cursor->col);
-				}
-				vc->submit(line, vc->submit_udata);
-			}
-		} else {
+		if (vc->submit != NULL)
+			vc->submit(get_line_at_cursor(vc->cursor,
+			    0), vc->submit_udata);
+		else
 			buffer_insert(vc->cursor, "\n", 1);
-		}
 		return 1;
 	case XK_Left:
 		if (e->state & ShiftMask)

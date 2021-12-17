@@ -8,7 +8,11 @@ buffer can be used for interacting with the backend program in a
 linear or non-linear fashion. It could also be thought *vtsh* means
 *vertical tabs of shells*.
 
-See the [screenshot](https://namhas.dev/vtsh.png).
+See the [screenshot](https://namhas.dev/vtsh.png) showing various
+features and see the [animated screenshot](https://namhas.dev/vtsh-ed.gif)
+showing *vtsh* running line-based editor from 1970s using *vtsh*'s
+*slave buffers* and *buffer redirection* achieving cursor-addressable
+editing without code modifications to the original *ed* editor.
 
 It also an exercise in taking the Unix philosophy to the extreme
 in the footsteps of e.g. [acme](http://acme.cat-v.org/)

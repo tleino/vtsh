@@ -43,7 +43,7 @@ void
 statbar_update_status(struct statbar *statbar, StatbarState state,
 	int pid, int ret, int lines)
 {
-	char status[256];
+	char status[256], str[256];
 
 	if (pid != 0)
 		snprintf(status, sizeof(status), "%dL %d", lines, pid);
@@ -54,7 +54,8 @@ statbar_update_status(struct statbar *statbar, StatbarState state,
 	else
 		snprintf(status, sizeof(status), "%dL", lines);
 
-	label_set(statbar->label, status);
+	snprintf(str, sizeof(str), "%-12s", status);
+	label_set(statbar->label, str);
 }
 
 void

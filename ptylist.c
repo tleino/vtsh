@@ -41,6 +41,7 @@ struct ptylist {
 };
 
 static int		 ptylist_keypress(XKeyEvent *, void *);
+static void		 ptylist_focus_change(int, void *);
 static struct pty	*ptylist_add_pty(struct ptylist *, struct pty *);
 static int		 ptylist_find_pty(struct ptylist *, struct widget *);
 static struct pty	*ptylist_find_focus(struct ptylist *);
@@ -65,6 +66,8 @@ ptylist_create(const char *name, struct widget *parent)
 
 	widget_set_keypress_callback(WIDGET(ptylist), ptylist_keypress,
 	    ptylist);
+	widget_set_focus_change_callback(WIDGET(ptylist),
+	    ptylist_focus_change, ptylist);
 
 	ptylist_add_pty(ptylist, NULL);
 
@@ -159,6 +162,17 @@ ptylist_find_focus(struct ptylist *ptylist)
 		return ptylist->ptys[i];
 
 	return NULL;
+}
+
+static void
+ptylist_focus_change(int state, void *udata)
+{
+	struct ptylist *ptylist = udata;
+	struct pty *pty;
+
+	pty = ptylist_find_focus(ptylist);
+	if (pty != NULL)
+		editor_shrink(pty->ts_editor);
 }
 
 static int

@@ -24,6 +24,8 @@ struct dpy {
 	Display *display;
 	int screen;
 	Window root;
+	int backing_store;
+	int save_unders;
 };
 
 #define DPY(_x) (_x)->display

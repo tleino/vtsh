@@ -24,6 +24,7 @@
 #include "util.h"
 #include "widget.h"
 #include "uflags.h"
+#include "config.h"
 
 #include <stdio.h>
 
@@ -76,36 +77,46 @@ editor_scroll_into_view(struct editor *editor, size_t row, size_t col)
 		editor->top_row += d;
 		editor->bottom_row += d;
 		editor_scroll_down(editor, d);
-		XFlush(DPY(editor->dpy));
 		return 1;
 	} else if (row < editor->top_row) {
 		d = editor->top_row - row;
 		editor->top_row -= d;
 		editor->bottom_row -= d;
 		editor_scroll_up(editor, d);
-		XFlush(DPY(editor->dpy));
 		return 1;
-	} else {
-		return 0;
 	}
 
-	/* TODO: Not reached */
-	editor_draw(editor, editor->top_row, editor->bottom_row);
-	XFlush(DPY(editor->dpy));
-	return 1;
+	return 0;
+}
+
+void
+editor_shrink(struct editor *editor)
+{
+	editor->largest_height = buffer_rows(editor->buffer) * font_height();
+	editor->old_height = editor_max_height(editor);
+	WIDGET_PREFER_HEIGHT(editor) = editor_max_height(editor);
+	widget_update_geometry(WIDGET(editor));
 }
 
 int
 editor_max_height(struct editor *editor)
 {
+	int height;
+
 	font_set(FONT_NORMAL);
+
+	height = MAX(
+	    buffer_rows(editor->buffer) * font_height(),
+	    editor->largest_height);
+	if (height > editor->largest_height)
+		editor->largest_height = height;
 
 	if (editor->max_rows != -1)
 		return MIN(
-		    buffer_rows(editor->buffer) * font_height(),
+		    height,
 		    editor->max_rows * font_height());
 	else {
-		return MAX(buffer_rows(editor->buffer) * font_height(),
+		return MAX(height,
 		    font_height());
 	}
 }
@@ -146,8 +157,6 @@ editor_draw_cursor(struct editor *editor, struct cursor *cursor, int clear)
 	x += font_str_width(x-100, dst, len);
 
 	font_draw_wc(editor->window, x, y, &ch, 1);
-	XFlush(DPY(editor->dpy));
-
 	return x;
 }
 
@@ -160,10 +169,12 @@ editor_focus(int focused, void *udata)
 		return;
 
 	editor->focused = focused;
+	editor_scroll_into_view(editor, editor->cursor->row,
+	    editor->cursor->col);
+
 	if (editor->ocursor)
 		editor_draw_cursor(editor, editor->ocursor, 0);
 	editor_draw_cursor(editor, editor->cursor, 0);
-	XFlush(DPY(editor->dpy));
 }
 
 void
@@ -176,6 +187,21 @@ draw_update(
 	void *udata)
 {
 	struct editor *ctx = udata;
+	int row_px, to_row_px;
+
+	row_px = (row - ctx->top_row) * font_height();
+	to_row_px = (to_row - ctx->top_row + 1) * font_height();
+
+	if (WIDGET(ctx)->need_expose == 0) {
+		WIDGET(ctx)->expose_from_px = row_px;
+		WIDGET(ctx)->expose_to_px = to_row_px;
+		WIDGET(ctx)->need_expose = 1;
+	} else {
+		WIDGET(ctx)->expose_from_px = MIN(row_px,
+		    WIDGET(ctx)->expose_from_px);
+		WIDGET(ctx)->expose_to_px = MAX(to_row_px,
+		    WIDGET(ctx)->expose_to_px);
+	}
 
 	if (ctx->old_height != editor_max_height(ctx)) {
 		ctx->old_height = editor_max_height(ctx);
@@ -191,16 +217,7 @@ draw_update(
 	 */
 	if (editor_scroll_into_view(ctx, to_row, to_col) == 0)
 		editor_draw(ctx, row, to_row);
-#else
-	editor_draw(ctx, row, to_row);
 #endif
-
-	/*
-	 * Flush is required because the update might have been triggered
-	 * from a pty event. Flush is otherwise called automatically for
-	 * all X11 event sequences.
-	 */
-	XFlush(DPY(ctx->dpy));
 }
 
 void
@@ -212,9 +229,10 @@ editor_set_cursor(struct editor *editor, struct cursor *cursor,
 	editor->cursor = cursor;
 	editor->buffer = cursor->buffer;
 	editor->ocursor = ocursor;
+	editor->top_row = 0;
+	editor->bottom_row = 0;
+	
 	buffer_add_listener(editor->buffer, draw_update, editor);
-
-	XFlush(DPY(editor->dpy));
 }
 
 void
@@ -272,7 +290,6 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 	widget_set_draw_callback(WIDGET(editor), editor_expose, editor);
 
 	widget_show(WIDGET(editor));
-
 	return editor;
 }
 
@@ -564,10 +581,6 @@ editor_keypress(XKeyEvent *e, void *udata)
 	case XK_Up:
 	case XK_Down:
 		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
-		if (vc->ocursor && (vc->cursor->row != vc->ocursor->row ||
-		    vc->cursor->col != vc->ocursor->col))
-			editor_draw_cursor(vc, vc->ocursor, 0);
-		editor_draw_cursor(vc, vc->cursor, 0);
 		return 1;
 	}
 
@@ -622,9 +635,11 @@ editor_scroll_up(struct editor *editor, size_t steps)
 static void
 editor_draw(struct editor *editor, size_t from, size_t to)
 {
-	size_t i, x, y, len;
+	int i, x, y, len;
 	size_t rows;
+#ifdef WANT_LINE_NUMBERS
 	char lineno[256];
+#endif
 	static char dst[4096];
 
 	font_set(FONT_NORMAL);
@@ -632,6 +647,7 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 
 	rows = buffer_rows(editor->buffer);
 
+#ifdef WANT_LINE_NUMBERS
 	font_set_bgcolor(COLOR_TEXT_LINENO);
 	for (i = from; i <= to; i++) {
 		if (i < editor->top_row)
@@ -642,18 +658,22 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 		x = 0;
 		y = (i - editor->top_row) * font_height();
 
+		if (y >= WIDGET_HEIGHT(editor))
+			continue;
+
 		if (buffer_row_uflags(editor->buffer, i) & ROW_UFLAGS_CMDLINE)
 			font_set_fgcolor(COLOR_TEXT_CURSOR);
 		else
 			font_set_fgcolor(COLOR_TEXT_FG);
 
 		if (i % (WIDGET_HEIGHT(editor) / font_height()) == 0)
-			snprintf(lineno, sizeof(lineno), "%zu->", i + 1);
+			snprintf(lineno, sizeof(lineno), "%d->", i + 1);
 		else
-			snprintf(lineno, sizeof(lineno), "%zu", i + 1);
+			snprintf(lineno, sizeof(lineno), "%d", i + 1);
 		x += font_draw(editor->window, x, y, lineno, strlen(lineno));
 		font_clear(editor->window, x, y, 100 - x);
 	}
+#endif
 
 	font_set_bgcolor(editor->bgcolor);
 	font_set_fgcolor(COLOR_TEXT_FG);
@@ -665,15 +685,22 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 
 		x = 100;
 		y = (i - editor->top_row) * font_height();
+
+		if (y >= WIDGET_HEIGHT(editor))
+			continue;
+
 		if (i < rows) {
 			len = buffer_u8str_at(editor->buffer, i, 0, -1, dst,
 			    sizeof(dst));
 
 			x += font_draw(editor->window, x, y, dst, len);
+			if (WIDGET_WIDTH(editor)-x > 0)
+				font_clear(editor->window, x, y,
+				    WIDGET_WIDTH(editor) - x);
+		}
+		if (WIDGET_WIDTH(editor)-x > 0)
 			font_clear(editor->window, x, y,
 			    WIDGET_WIDTH(editor) - x);
-		}
-		font_clear(editor->window, x, y, WIDGET_WIDTH(editor) - x);
 	}
 
 	if (editor->ocursor)
@@ -681,24 +708,21 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 
 	editor_draw_cursor(editor, editor->cursor, 0);
 
-	/*
-	 * TODO: Do this only when necessary e.g. clear the remaining
-	 *       area that was too small for a full height text line at
-	 *       the bottom. It is not necessary when only updating one
-	 *       line.
-	 */
 	y = (WIDGET_HEIGHT(editor) / font_height()) * font_height();
-	if (y < WIDGET_HEIGHT(editor))
+	if (y < WIDGET_HEIGHT(editor) && y > WIDGET_HEIGHT(editor) -
+	    font_height()) {
 		XClearArea(DPY(editor->dpy), WIDGET(editor)->window, 0,
 		    y, WIDGET_WIDTH(editor), WIDGET_HEIGHT(editor) - y, False);
-
-	XFlush(DPY(editor->dpy));
+	}
 }
 
 static void
 editor_expose(int x, int y, int width, int height, void *udata)
 {
 	struct editor *editor = udata;
+	int from, to;
 
-	editor_draw(editor, editor->top_row, editor->bottom_row);
+	from = editor->top_row + (y / font_height());
+	to = editor->top_row + ((y + height) / font_height());
+	editor_draw(editor, from, to);
 }

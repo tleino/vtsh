@@ -20,6 +20,7 @@
 #include "util.h"
 #include "dpy.h"
 #include "font.h"
+#include "config.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -114,12 +115,13 @@ static void
 layout_update_geometry(void *udata)
 {
 	struct layout *layout = udata;
+#ifdef WANT_OVERLAPPING_WINDOWS
+	struct widget *root;
+#endif
 	int i;
 	int offset;
 	double equal, equal_surplus, surplus, d, add, n_need, n;
 	extern struct dpy *dpy;
-	unsigned int mask;
-	XWindowChanges changes;
 	double sides[100] = { 0 };	/* TODO: Make dynamic */
 	int axis;
 
@@ -136,6 +138,10 @@ layout_update_geometry(void *udata)
 
 	if (n == 0)
 		return;
+
+#ifdef WANT_OVERLAPPING_WINDOWS
+	root = widget_find_root(WIDGET(layout));
+#endif
 
 	for (i = 0; i < NCHILDREN(layout); i++) {
 		if (!CHILD(layout, i)->visible)
@@ -192,6 +198,12 @@ layout_update_geometry(void *udata)
 		CHILD(layout, i)->size[axis] = sides[i];
 		CHILD(layout, i)->size[!axis] = WIDGET(layout)->size[!axis];
 
+#ifdef WANT_OVERLAPPING_WINDOWS
+		CHILD(layout, i)->physical_size[axis] = root->size[axis];
+		CHILD(layout, i)->physical_size[!axis] =
+		    CHILD(layout, i)->size[!axis];
+#endif
+
 		offset += CHILD(layout, i)->size[axis];
 
 		if (CHILD(layout, i)->parent->window == 0) {
@@ -201,30 +213,38 @@ layout_update_geometry(void *udata)
 			    POSY(CHILD(layout, i)->parent);
 		}
 
-		mask = 0;
-		if (POSX(CHILD(layout, i)) != OLD_POSX(CHILD(layout, i))) {
-			mask |= CWX;
-			changes.x = POSX(CHILD(layout, i));
-		}
-		if (POSY(CHILD(layout, i)) != OLD_POSY(CHILD(layout, i))) {
-			mask |= CWY;
-			changes.y = POSY(CHILD(layout, i));
-		}
-		if (WIDTH(CHILD(layout, i)) != OLD_WIDTH(CHILD(layout, i))) {
-			mask |= CWWidth;
-			changes.width = WIDTH(CHILD(layout, i));
-		}
-		if (HEIGHT(CHILD(layout, i)) != OLD_HEIGHT(CHILD(layout, i))) {
-			mask |= CWHeight;
-			changes.height = HEIGHT(CHILD(layout, i));
-		}
+		CHILD(layout, i)->changes.x = POSX(CHILD(layout, i));
+		CHILD(layout, i)->changes.y = POSY(CHILD(layout, i));
+#ifndef WANT_OVERLAPPING_WINDOWS
+		CHILD(layout, i)->changes.width = WIDTH(CHILD(layout, i));
+		CHILD(layout, i)->changes.height = HEIGHT(CHILD(layout, i));
+#else
+		CHILD(layout, i)->changes.width =
+		    CHILD(layout, i)->physical_size[0];
+		CHILD(layout, i)->changes.height =
+		    CHILD(layout, i)->physical_size[1];
+#endif
 
-		if (CHILD(layout, i)->window != 0 && mask > 0)
-			XConfigureWindow(DPY(dpy),
-				    CHILD(layout, i)->window, mask, &changes);
+		if (POSX(CHILD(layout, i)) != OLD_POSX(CHILD(layout, i)))
+			CHILD(layout, i)->changes_mask |= CWX;
+		if (POSY(CHILD(layout, i)) != OLD_POSY(CHILD(layout, i)))
+			CHILD(layout, i)->changes_mask |= CWY;
+
+#ifndef WANT_OVERLAPPING_WINDOWS
+		if (WIDTH(CHILD(layout, i)) != OLD_WIDTH(CHILD(layout, i)))
+			CHILD(layout, i)->changes_mask |= CWWidth;
+		if (HEIGHT(CHILD(layout, i)) != OLD_HEIGHT(CHILD(layout, i)))
+			CHILD(layout, i)->changes_mask |= CWHeight;
+#else
+		if (CHILD(layout, i)->physical_size[0] !=
+		    CHILD(layout, i)->old_physical_size[0])
+			CHILD(layout, i)->changes_mask |= CWWidth;
+		if (CHILD(layout, i)->physical_size[1] !=
+		    CHILD(layout, i)->old_physical_size[1])
+			CHILD(layout, i)->changes_mask |= CWHeight;
+
+#endif
 	}
-
-	XFlush(DPY(dpy));
 }
 
 void

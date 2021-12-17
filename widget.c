@@ -22,6 +22,9 @@
 #include "widget.h"
 #include "dpy.h"
 #include "xevent.h"
+#include "event.h"
+#include "util.h"
+#include "config.h"
 
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
@@ -65,6 +68,11 @@ static void		 widget_notify_focus_change(struct widget *, int);
 static int		 widget_enable_takefocus(struct widget *);
 static void		 widget_takefocus(Time, void *);
 
+static void		 widget_root_idle(void *);
+
+static void		 widget_flush_expose(struct widget *);
+static void		 widget_flush_changes(struct widget *);
+
 #ifdef DEBUG
 static void		 widget_dump_tree(struct widget *, int);
 #else
@@ -76,9 +84,16 @@ widget_expose(XExposeEvent *e, void *udata)
 {
 	struct widget *widget = udata;
 
-	if (widget->draw != NULL)
-		widget->draw(e->x, e->y, e->width, e->height,
-		    widget->draw_udata);
+	widget->expose_from_px = MIN(widget->expose_from_px, e->y);
+	widget->expose_to_px = MAX(widget->expose_to_px, (e->y + e->height));
+	widget->need_expose = 1;
+	widget->need_expose_from_event = 1;
+#ifdef DEBUG
+	printf("Request Expose %s/%s (%d->%d)\n",
+	    widget->parent ? widget->parent->name : "<root>",
+	    widget->name, widget->expose_from_px, widget->expose_to_px);
+#endif
+	widget_flush_expose(widget);	
 }
 
 static void
@@ -99,6 +114,10 @@ widget_call_geometry(struct widget *widget)
 		widget->old_size[HEIGHT_AXIS] = widget->size[HEIGHT_AXIS];
 		widget->old_pos[WIDTH_AXIS] = widget->pos[WIDTH_AXIS];
 		widget->old_pos[HEIGHT_AXIS] = widget->pos[HEIGHT_AXIS];
+		widget->old_physical_size[WIDTH_AXIS] =
+		    widget->physical_size[WIDTH_AXIS];
+		widget->old_physical_size[HEIGHT_AXIS] =
+		    widget->physical_size[HEIGHT_AXIS];
 
 		if (!widget->has_managed_geometry) {
 			widget->size[WIDTH_AXIS] =
@@ -227,6 +246,76 @@ widget_keypress(XKeyEvent *xkey, void *udata)
 		widget_root_keypress(xkey, widget);
 }
 
+static void
+widget_flush_expose(struct widget *widget)
+{
+	int i;
+	int from, to;
+
+	if (widget->need_expose && widget->draw != NULL) {
+		from = MAX(widget->expose_from_px, 0);
+		to = MAX(widget->expose_to_px, 0);
+		from = MIN(from, widget->size[1]);
+		to = MIN(to, widget->size[1]);
+
+		widget->need_expose = 0;
+		widget->expose_from_px = 0;
+		widget->expose_to_px = 0;
+
+		if (from != to) {
+#ifdef DEBUG
+			printf("\tDraw %s/%s (%d->%d) (event=%d)\n",
+			    widget->parent ? widget->parent->name : "<root>",
+			    widget->name, from, to,
+			    widget->need_expose_from_event);
+#endif
+			widget->draw(0, from, widget->size[0], to-from,
+			    widget->draw_udata);
+		}
+
+		widget->need_expose_from_event = 0;
+	}
+
+	for (i = 0; i < widget->nchildren; i++)
+		widget_flush_expose(widget->children[i]);
+}
+
+static void
+widget_flush_changes(struct widget *widget)
+{
+	extern struct dpy *dpy;
+
+	int i;
+
+	if (widget->changes_mask != 0 && widget->window != 0) {
+#ifdef DEBUG
+		printf("\tChange %s/%s",
+		    widget->parent ? widget->parent->name : "<root>",
+		    widget->name);
+		if (widget->changes_mask & CWY)
+			printf(" (y->%d)", widget->changes.y);
+		if (widget->changes_mask & CWX)
+			printf(" (x->%d)", widget->changes.x);
+		if (widget->changes_mask & CWWidth)
+			printf(" (w->%d)", widget->changes.width);
+		if (widget->changes_mask & CWHeight)
+			printf(" (h->%d)", widget->changes.height);
+		printf("\n");
+#endif
+		XConfigureWindow(DPY(dpy), widget->window,
+		    widget->changes_mask, &widget->changes);
+		widget->changes_mask = 0;
+	}
+
+#ifdef WANT_FLUSHES_IN_REVERSE
+	for (i = widget->nchildren-1; i >= 0; i--)
+		widget_flush_changes(widget->children[i]);
+#else
+	for (i = 0; i < widget->nchildren; i++)
+		widget_flush_changes(widget->children[i]);
+#endif
+}
+
 /*
  * Should be called only for the top-level window.
  */
@@ -234,6 +323,7 @@ static void
 widget_resize(XConfigureEvent *e, void *udata)
 {
 	struct widget *widget = udata;
+	extern struct dpy *dpy;
 
 	widget->size[WIDTH_AXIS] = e->width;
 	widget->size[HEIGHT_AXIS] = e->height;
@@ -268,15 +358,18 @@ widget_update_geometry(struct widget *widget)
 	}
 
 	widget_call_geometry(widget);
+	widget_flush_changes(widget);
+	widget_flush_expose(widget);
 }
 
 static void
 widget_notify_focus_change(struct widget *widget, int state)
 {
-	if (widget->focus_change == NULL)
-		return;
+	if (widget->parent)
+		widget_notify_focus_change(widget->parent, state);
 
-	widget->focus_change(state, widget->focus_change_udata);
+	if (widget->focus_change != NULL)
+		widget->focus_change(state, widget->focus_change_udata);
 }
 
 void
@@ -524,6 +617,8 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 		widget->xim = XOpenIM(DPY(dpy), NULL, NULL, NULL);
 		if (widget->xim == NULL)
 			errx(1, "no XIM");
+
+		add_idle_handler(widget_root_idle, widget);
 	} else {
 		widget_add_child(parent, widget);
 		parent_window = widget_find_parent_window(parent)->window;
@@ -544,12 +639,29 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 	if (windowless)
 		return widget;
 
+	v = 0;
+
 	widget->event_mask |= ButtonPressMask;
+	a.event_mask = widget->event_mask;
+	v |= CWEventMask;
 
 	a.background_pixel = bgcolor;
-	a.backing_store = WhenMapped;
-	a.event_mask = widget->event_mask;
-	v = (CWEventMask | CWBackingStore | CWBackPixel);
+	v |= CWBackPixel;
+
+	if (dpy->backing_store != NotUseful) {
+		a.backing_store = WhenMapped;
+		v |= CWBackingStore;
+	}
+
+	/*
+	 * Setting 'bit_gravity' would be nice for avoiding repaint
+	 * flicker, but it causes drawing glitches when resizing/moving
+	 * windows in quick succession.
+	 */
+#if 0
+	a.bit_gravity = StaticGravity;
+	v |= CWBitGravity;
+#endif
 
 	widget->window = XCreateWindow(DPY(dpy), parent_window,
 	    widget->pos[WIDTH_AXIS], widget->pos[HEIGHT_AXIS],
@@ -611,7 +723,6 @@ widget_show(struct widget *widget)
 	widget_update_geometry(widget);	
 
 	if (widget->window != 0) {
-		XRaiseWindow(DPY(dpy), widget->window);
 		XMapWindow(DPY(dpy), widget->window);
 	}
 }
@@ -747,6 +858,19 @@ widget_takefocus(Time t, void *udata)
 	extern struct dpy *dpy;
 
 	XSetInputFocus(DPY(dpy), widget->window, RevertToNone, t);
+	XSync(DPY(dpy), False);
+}
+
+static void
+widget_root_idle(void *udata)
+{
+	struct widget *widget = udata;
+	extern struct dpy *dpy;
+
+	widget_flush_changes(widget);
+	XSync(DPY(dpy), False);
+
+	widget_flush_expose(widget);
 	XSync(DPY(dpy), False);
 }
 

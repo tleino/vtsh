@@ -76,8 +76,9 @@ label_set(struct label *label, const char *text)
 	WIDGET_PREFER_HEIGHT(label) = font_height();
 	widget_update_geometry(WIDGET(label));
 
-	label_draw(0, 0, WIDGET_WIDTH(label), WIDGET_HEIGHT(label), label);
-	XFlush(DPY(dpy));
+	WIDGET(label)->need_expose = 1;
+	WIDGET(label)->expose_from_px = 0;
+	WIDGET(label)->expose_to_px = WIDGET_HEIGHT(label);
 }
 
 void

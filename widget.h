@@ -94,6 +94,9 @@ struct widget {
 	int old_size[2];
 	int old_pos[2];
 
+	int physical_size[2];
+	int old_physical_size[2];
+
 	/*
 	 * 'prefer_' are hints for layout management.
 	 */
@@ -106,6 +109,14 @@ struct widget {
 	long event_mask;
 
 	XIC ic;
+
+	XWindowChanges changes;
+	unsigned int changes_mask;
+
+	int need_expose;
+	int need_expose_from_event;
+	int expose_from_px;
+	int expose_to_px;
 
 	/*
 	 * These are only relevant in root widget:

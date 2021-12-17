@@ -145,8 +145,8 @@ process_xevents(int fd, void *udata)
 	while (XPending(DPY(dpy))) {
 		XNextEvent(DPY(dpy), &event);
 		handle_xevent(&event);
+		XSync(DPY(dpy), False);
 	}
-	XFlush(DPY(dpy));
 }
 
 static void
@@ -196,7 +196,11 @@ handle_xevent(XEvent *event)
 {
 	switch (event->type) {
 	case Expose:
-		if (event->xexpose.count == 0) {
+		/*
+		 * TODO: Decide whether or not we want all expose events
+		 *       or just the last one.
+		 */
+		if (1 || event->xexpose.count == 0) {
 			run_xevent_handlers(event, HANDLER_TYPE_EXPOSE,
 			    event->xexpose.window);
 		}
@@ -218,6 +222,5 @@ handle_xevent(XEvent *event)
 		    event->xclient.window);
 		break;
 	}
-	XFlush(DPY(dpy));
 	return;
 }

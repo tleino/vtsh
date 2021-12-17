@@ -15,15 +15,29 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef EVENT_H
-#define EVENT_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
-typedef void (*EventHandler)(int, void *);
-typedef void (*IdleHandler)(void *);
+/*
+ * WANT_OVERLAPPING_WINDOWS:
+ *   For avoiding repaint flicker, sometimes it is better to have large
+ *   windows moved partially beneath other windows rather than have small
+ *   windows without overlap.
+ */
+/* #define WANT_OVERLAPPING_WINDOWS */
 
-int	 add_event_source(int, EventHandler, void *);
-int	 add_idle_handler(IdleHandler, void *);
-void	 remove_event_source(int);
-void	 run_event_loop(void);
+/*
+ * WANT_FLUSHES_IN_REVERSE:
+ *   For avoiding repaint flicker, sometimes it is good to flush updates
+ *   in reverse order.
+ */
+/* #define WANT_FLUSHES_IN_REVERSE */
+
+/*
+ * WANT_LINE_NUMBERS:
+ *   For debugging purposes, it is useful to have line numbers visible.
+ *   Normally not always needed.
+ */
+#define WANT_LINE_NUMBERS
 
 #endif

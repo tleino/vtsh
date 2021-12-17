@@ -47,6 +47,7 @@ struct editor {
 	int			 bottom_row;
 	size_t			 begin_colx;	/* TODO */
 	size_t			 begin_col;
+	int			 largest_height;
 
 	struct widget		*widget;
 };
@@ -59,6 +60,7 @@ void		 editor_set_resize_handler(struct editor *,
 struct editor	*editor_create(struct dpy *, struct cursor *,
 		    EditSubmitHandler, void *, int, int, const char *,
 		    struct widget *);
+void		 editor_shrink(struct editor *);
 void		 editor_free(struct editor *);
 
 #endif

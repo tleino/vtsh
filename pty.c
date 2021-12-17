@@ -170,6 +170,8 @@ pty_process_events(int ptyfd, void *udata)
 				state = STATBAR_STATE_EXITED;
 				status = WEXITSTATUS(status);
 			}
+
+			editor_shrink(pty->ts_editor);
 		}
 
 		statbar_update_status(pty->statbar, state, pty->pid,

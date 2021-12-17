@@ -53,6 +53,14 @@ dpy_create()
 	dpy->screen = DefaultScreen(dpy->display);
 	dpy->root = DefaultRootWindow(dpy->display);
 
+	dpy->backing_store = XDoesBackingStore(XScreenOfDisplay(DPY(dpy),
+	    dpy->screen));
+	if (dpy->backing_store == NotUseful)
+		warnx("screen not capable of backing store");
+
+	dpy->save_unders = XDoesSaveUnders(XScreenOfDisplay(DPY(dpy),
+	    dpy->screen));
+
 	/*
 	 * We use XKB extension because XKeycodeToKeysym is deprecated,
 	 * even though there would be no big harm.

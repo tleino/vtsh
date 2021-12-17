@@ -29,9 +29,18 @@ struct event_source {
 	EventHandler handler;
 };
 
+struct idle_handler {
+	void *udata;
+	IdleHandler handler;
+};
+
 static struct event_source *sources;
 static size_t n_sources;
 static size_t max_sources;
+
+static struct idle_handler *idles;
+static size_t n_idles;
+static size_t max_idles;
 
 int
 add_event_source(int fd, EventHandler handler, void *udata)
@@ -42,6 +51,18 @@ add_event_source(int fd, EventHandler handler, void *udata)
 			return -1;
 
 	sources[n_sources++] = (struct event_source) { fd, udata, handler };
+	return 0;
+}
+
+int
+add_idle_handler(IdleHandler handler, void *udata)
+{
+	if (max_idles == n_idles)
+		if (grow_array((void **) &idles, sizeof(*idles),
+		    &max_idles) == -1)
+			return -1;
+
+	idles[n_idles++] = (struct idle_handler) { udata, handler };
 	return 0;
 }
 
@@ -90,7 +111,13 @@ run_event_loop()
 				break;
 			}
 
+	if (n_idles > 0)
+		idles[0].handler(idles[0].udata);
+
 	sources[0].handler(sources[0].fd, sources[0].udata);
+
+	if (n_idles > 0)
+		idles[0].handler(idles[0].udata);
 }
 
 #ifdef TEST

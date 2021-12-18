@@ -17,6 +17,7 @@
 
 #include "util.h"
 #include "event.h"
+#include "xevent.h"
 
 #include <assert.h>
 #include <sys/select.h>
@@ -89,6 +90,10 @@ run_event_loop()
 {
 	fd_set rfds;
 	size_t nready, i, maxfd;
+	extern struct dpy *dpy;
+
+	if (n_idles > 0)
+		idles[0].handler(idles[0].udata);
 
 	FD_ZERO(&rfds);
 
@@ -98,11 +103,24 @@ run_event_loop()
 		maxfd = MAX(sources[i].fd, maxfd);
 	}
 
+	/*
+	 * Sometimes we will have X11 events already in the queue even
+	 * though the queue should be empty before reading more, possibly
+	 * caused by Syncs or Flushes elsewhere. So, if we have any,
+	 * we need to proceed them before select().
+	 */
+	while (have_xevents()) {
+		sources[0].handler(sources[i].fd, sources[i].udata);
+
+		if (n_idles > 0)
+			idles[0].handler(idles[0].udata);
+	}
+
 	nready = select(maxfd + 1, &rfds, NULL, NULL, NULL);
 	if (nready == -1 || nready == 0)
 		err(1, "select");
 
-	while (nready)
+	while (nready) {
 		for (i = 0; i < n_sources; i++)
 			if (FD_ISSET(sources[i].fd, &rfds)) {
 				sources[i].handler(sources[i].fd,
@@ -110,14 +128,7 @@ run_event_loop()
 				nready--;
 				break;
 			}
-
-	if (n_idles > 0)
-		idles[0].handler(idles[0].udata);
-
-	sources[0].handler(sources[0].fd, sources[0].udata);
-
-	if (n_idles > 0)
-		idles[0].handler(idles[0].udata);
+	}
 }
 
 #ifdef TEST

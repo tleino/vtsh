@@ -102,11 +102,10 @@ widget_expose(XExposeEvent *e, void *udata)
 	widget->need_expose = 1;
 	widget->need_expose_from_event = 1;
 #ifdef DEBUG
-	printf("Request Expose ");
+	printf("Expose ");
 	widget_print_name(widget);
 	printf(" (%d->%d)\n", widget->expose_from_px, widget->expose_to_px);
 #endif
-	widget_flush_expose(widget);	
 }
 
 static void
@@ -297,7 +296,6 @@ static void
 widget_flush_changes(struct widget *widget)
 {
 	extern struct dpy *dpy;
-
 	int i;
 
 	if (widget->changes_mask != 0 && widget->window != 0) {
@@ -341,6 +339,10 @@ widget_resize(XConfigureEvent *e, void *udata)
 	widget->size[HEIGHT_AXIS] = e->height;
 
 	widget_call_geometry(widget);
+
+#ifdef DEBUG
+	printf("widget_resize to %d,%d\n", e->width, e->height);
+#endif
 }
 
 #ifdef DEBUG
@@ -370,8 +372,6 @@ widget_update_geometry(struct widget *widget)
 	}
 
 	widget_call_geometry(widget);
-	widget_flush_changes(widget);
-	widget_flush_expose(widget);
 }
 
 static void
@@ -869,8 +869,11 @@ widget_takefocus(Time t, void *udata)
 	struct widget *widget = udata;
 	extern struct dpy *dpy;
 
+#ifdef DEBUG
+	printf("TAKEFOCUS\n");
+#endif
+
 	XSetInputFocus(DPY(dpy), widget->window, RevertToNone, t);
-	XSync(DPY(dpy), False);
 }
 
 static void
@@ -879,11 +882,14 @@ widget_root_idle(void *udata)
 	struct widget *widget = udata;
 	extern struct dpy *dpy;
 
-	widget_flush_changes(widget);
-	XSync(DPY(dpy), False);
+#ifdef DEBUG
+	printf("widget_root_idle %s\n", widget->name);
+#endif
 
+	widget_flush_changes(widget);
 	widget_flush_expose(widget);
-	XSync(DPY(dpy), False);
+
+	XFlush(DPY(dpy));
 }
 
 void

@@ -36,6 +36,7 @@ int
 main(int argc, char *argv[])
 {
 	struct ptylist *ptylist;
+	XEvent e;
 
 #ifdef HAVE_PLEDGE
 	if (pledge("stdio rpath wpath tty unix inet proc exec", NULL) == -1)
@@ -58,7 +59,14 @@ main(int argc, char *argv[])
 		err(1, "pledge");
 #endif
 
-	process_xevents(ConnectionNumber(DPY(dpy)), NULL);
+	/*
+	 * Wait until main window is mapped. This is not always strictly
+	 * necessary.
+	 */
+	XSync(DPY(dpy), False);
+	do {
+		XMaskEvent(DPY(dpy), StructureNotifyMask, &e);
+	} while (e.type != MapNotify);
 
 	add_event_source(ConnectionNumber(DPY(dpy)), process_xevents, NULL);
 

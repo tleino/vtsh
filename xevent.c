@@ -137,15 +137,20 @@ add_resize_handler(Window window, ResizeHandler handler, void *udata)
 	return 0;
 }
 
+int
+have_xevents()
+{
+	return XEventsQueued(DPY(dpy), QueuedAlready);
+}
+
 void
 process_xevents(int fd, void *udata)
 {
 	XEvent event;
 
-	while (XPending(DPY(dpy))) {
+	while (XEventsQueued(DPY(dpy), QueuedAfterReading)) {
 		XNextEvent(DPY(dpy), &event);
 		handle_xevent(&event);
-		XSync(DPY(dpy), False);
 	}
 }
 

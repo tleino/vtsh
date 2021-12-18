@@ -31,11 +31,13 @@ struct label *
 label_create(const char *name, struct widget *parent)
 {
 	struct label *label;
+	extern struct dpy *dpy;
 
 	if ((label = calloc(1, sizeof(*label))) == NULL)
 		return NULL;
 
-	if ((WIDGET(label) = widget_create(name, parent)) == NULL)
+	if ((WIDGET(label) = widget_create_colored(query_color(dpy,
+	    COLOR_TITLE_BG_NORMAL).pixel, name, parent)) == NULL)
 		goto fail;
 
 	font_set(FONT_NORMAL);

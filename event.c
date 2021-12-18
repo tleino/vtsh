@@ -90,7 +90,6 @@ run_event_loop()
 {
 	fd_set rfds;
 	size_t nready, i, maxfd;
-	extern struct dpy *dpy;
 
 	if (n_idles > 0)
 		idles[0].handler(idles[0].udata);

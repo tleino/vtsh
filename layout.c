@@ -121,7 +121,6 @@ layout_update_geometry(void *udata)
 	int i;
 	int offset;
 	double equal, equal_surplus, surplus, d, add, n_need, n;
-	extern struct dpy *dpy;
 	double sides[100] = { 0 };	/* TODO: Make dynamic */
 	int axis;
 

@@ -119,7 +119,6 @@ static void
 widget_call_geometry(struct widget *widget)
 {
 	int i;
-	extern struct dpy *dpy;
 
 	if (widget->parent != NULL) {
 		widget->old_size[WIDTH_AXIS] = widget->size[WIDTH_AXIS];

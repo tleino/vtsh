@@ -646,6 +646,11 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 		else
 			font_set_fgcolor(COLOR_TEXT_FG);
 
+		/*
+		 * TODO: Implement minimum WIDGET_HEIGHT because this can
+		 *       result in floating point exception because this
+		 *       can become i % 0.
+		 */
 		if (i % (WIDGET_HEIGHT(editor) / font_height()) == 0)
 			snprintf(lineno, sizeof(lineno), "%d->", i + 1);
 		else

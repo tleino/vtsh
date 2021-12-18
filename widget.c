@@ -79,6 +79,19 @@ static void		 widget_dump_tree(struct widget *, int);
 #define widget_dump_tree(...) ((void) 0)
 #endif
 
+#ifdef DEBUG
+void
+widget_print_name(struct widget *widget)
+{
+	if (widget->parent)
+		widget_print_name(widget->parent);
+
+	printf("%s", widget->name);
+	if (widget->nchildren != 0)
+		putchar('/');
+}
+#endif
+
 static void
 widget_expose(XExposeEvent *e, void *udata)
 {
@@ -89,9 +102,9 @@ widget_expose(XExposeEvent *e, void *udata)
 	widget->need_expose = 1;
 	widget->need_expose_from_event = 1;
 #ifdef DEBUG
-	printf("Request Expose %s/%s (%d->%d)\n",
-	    widget->parent ? widget->parent->name : "<root>",
-	    widget->name, widget->expose_from_px, widget->expose_to_px);
+	printf("Request Expose ");
+	widget_print_name(widget);
+	printf(" (%d->%d)\n", widget->expose_from_px, widget->expose_to_px);
 #endif
 	widget_flush_expose(widget);	
 }
@@ -264,9 +277,9 @@ widget_flush_expose(struct widget *widget)
 
 		if (from != to) {
 #ifdef DEBUG
-			printf("\tDraw %s/%s (%d->%d) (event=%d)\n",
-			    widget->parent ? widget->parent->name : "<root>",
-			    widget->name, from, to,
+			printf("\tDraw ");
+			widget_print_name(widget);
+			printf(" (%d->%d) (event=%d)\n", from, to,
 			    widget->need_expose_from_event);
 #endif
 			widget->draw(0, from, widget->size[0], to-from,
@@ -289,9 +302,8 @@ widget_flush_changes(struct widget *widget)
 
 	if (widget->changes_mask != 0 && widget->window != 0) {
 #ifdef DEBUG
-		printf("\tChange %s/%s",
-		    widget->parent ? widget->parent->name : "<root>",
-		    widget->name);
+		printf("\tChange ");
+		widget_print_name(widget);
 		if (widget->changes_mask & CWY)
 			printf(" (y->%d)", widget->changes.y);
 		if (widget->changes_mask & CWX)

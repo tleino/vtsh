@@ -159,4 +159,10 @@ void		 widget_set_mousepress_callback(struct widget *,
 void		 widget_set_focus_change_callback(struct widget *,
 		    WidgetFocusChange, void *);
 
+#ifdef DEBUG
+void		 widget_print_name(struct widget *);
+#else
+#define widget_print_name(...) ((void) 0)
+#endif
+
 #endif

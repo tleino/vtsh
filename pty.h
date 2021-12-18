@@ -19,6 +19,7 @@
 #define PTY_H
 
 #include <unistd.h>
+#include <stdio.h>
 
 struct dpy;
 struct editor;
@@ -30,6 +31,10 @@ struct pty {
 
 	pid_t pid;
 	int ptyfd;
+
+	FILE *fp;
+	char *file;
+	int file_unsaved;
 
 	struct layout *hbox;
 	struct layout *vbox;
@@ -58,5 +63,6 @@ void		 pty_free(struct pty *);
 void		 pty_toggle_hide_output(struct pty *);
 void		 pty_hide_output(struct pty *);
 void		 pty_show_output(struct pty *);
+void		 pty_save(struct pty *);
 
 #endif

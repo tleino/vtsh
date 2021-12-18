@@ -39,7 +39,8 @@ main(int argc, char *argv[])
 	XEvent e;
 
 #ifdef HAVE_PLEDGE
-	if (pledge("stdio rpath wpath tty unix inet proc exec", NULL) == -1)
+	if (pledge("stdio cpath rpath wpath tty unix inet proc exec", NULL)
+	    == -1)
 		err(1, "pledge");
 #endif
 
@@ -55,7 +56,7 @@ main(int argc, char *argv[])
 		err(1, "creating main window");
 
 #ifdef HAVE_PLEDGE
-	if (pledge("stdio rpath wpath tty proc exec", NULL) == -1)
+	if (pledge("stdio cpath rpath wpath tty proc exec", NULL) == -1)
 		err(1, "pledge");
 #endif
 

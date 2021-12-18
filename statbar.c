@@ -51,6 +51,10 @@ statbar_update_status(struct statbar *statbar, StatbarState state,
 		snprintf(status, sizeof(status), "%dL E%d", lines, ret);
 	else if (state == STATBAR_STATE_SIGNALED)
 		snprintf(status, sizeof(status), "%dL S%d", lines, ret);
+	else if (state == STATBAR_STATE_FILE_SAVED)
+		snprintf(status, sizeof(status), "%dL", lines);
+	else if (state == STATBAR_STATE_FILE_UNSAVED)
+		snprintf(status, sizeof(status), "%dL *", lines);
 	else
 		snprintf(status, sizeof(status), "%dL", lines);
 

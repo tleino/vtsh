@@ -441,6 +441,10 @@ editor_keypress(XKeyEvent *e, void *udata)
 
 	if (e->state & ControlMask) {
 		switch (sym) {
+		case XK_x:
+		case XK_s:
+			return 0;
+			return 0;
 		case XK_a:
 			buffer_update_cursor(vc->buffer, vc->cursor, 0,
 			    -vc->cursor->col);

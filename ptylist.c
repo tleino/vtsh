@@ -36,6 +36,7 @@ struct ptylist {
 	struct pty *ptys[100];
 	int n_ptys;
 	int i;
+	int x_on;
 	struct widget *widget;
 	struct layout *vbox;
 };
@@ -186,6 +187,15 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 
 	sym = XkbKeycodeToKeysym(DPY(ptylist->dpy), xkey->keycode, 0,
 	    (xkey->state & ShiftMask) ? 1 : 0);
+
+	if (sym == XK_s && xkey->state & ControlMask && ptylist->x_on == 1) {
+		pty = ptylist_find_focus(ptylist);
+		pty_save(pty);
+		warnx("saved");
+	} else if (sym == XK_x && xkey->state & ControlMask)
+		ptylist->x_on = 1;
+	else
+		ptylist->x_on = 0;
 
 	if (!(xkey->state & Mod1Mask) && sym != XK_Escape)
 		return 0;

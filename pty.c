@@ -40,6 +40,7 @@
 #include <termios.h>
 #include <limits.h>
 #include <stdio.h>
+#include <errno.h>
 
 struct editor;
 
@@ -53,6 +54,8 @@ static void	pty_process_events(int, void *);
 static int	pty_add_slave(struct pty *, struct pty *);
 static int	pty_find_slave(struct pty *, struct pty *);
 static void	pty_remove_slave(struct pty *, struct pty *);
+
+static void	pty_file_updated(int, int, int, int, BufferUpdate, void *);
 
 struct pty *
 pty_create(struct pty *master, const char *name, struct widget *parent)
@@ -213,6 +216,53 @@ pty_submit_stdin(const char *s, void *udata)
 }
 
 static void
+pty_file_updated(int x, int y, int w, int h, BufferUpdate type, void *udata)
+{
+	struct pty *pty = udata;
+
+	if (pty->file_unsaved)
+		return;
+
+	statbar_update_status(pty->statbar, STATBAR_STATE_FILE_UNSAVED,
+	    0, 0, buffer_rows(pty->ts_buffer));
+	pty->file_unsaved = 1;
+}
+
+void
+pty_save(struct pty *pty)
+{
+	static char dst[4096];
+	int i, n, rows;
+
+	if (pty->ts_buffer == NULL || pty->file == NULL)
+		return;
+
+	if (pty->fp != NULL)
+		fclose(pty->fp);
+
+	pty->fp = fopen(pty->file, "w");
+	if (pty->fp == NULL) {
+		warn("%s", pty->file);
+		return;
+	}
+
+	rows = buffer_rows(pty->ts_buffer);
+	for (i = 0; rows > 0 && i < rows-1; i++) {
+		n = buffer_u8str_at(pty->ts_buffer, i, 0, -1, dst,
+		    sizeof(dst)-1);
+		dst[n] = '\0';
+
+		fprintf(pty->fp, "%s\n", dst);
+	}
+	fclose(pty->fp);
+
+	if (pty->file_unsaved)
+		statbar_update_status(pty->statbar, STATBAR_STATE_FILE_SAVED,
+		    0, 0, buffer_rows(pty->ts_buffer));
+	pty->file_unsaved = 0;
+}
+
+static void
 pty_submit_command(const char *s, void *udata)
 {
 	int status;
@@ -220,7 +270,7 @@ pty_submit_command(const char *s, void *udata)
 	struct pty *pty = udata, *master;
 	struct termios ts;
 	size_t len;
-	int i, send_ts;
+	int i, send_ts, use_file;
 	size_t n;
 	char buf[4096];
 	char *delim = "\x04";
@@ -234,6 +284,17 @@ pty_submit_command(const char *s, void *udata)
 	} else if (len >= 1 && s[len-1] == '<') {
 		send_ts = 1;
 		len--;
+	}
+
+	if (send_ts == 0 && s[0] == ':' && len > 1) {
+		s++;
+		len--;
+		use_file = 1;
+
+		if (pty->fp != NULL)
+			fclose(pty->fp);
+		pty->fp = fopen(s, "r");
+		pty->file = strdup(s);
 	}
 
 	master = pty->master;
@@ -280,6 +341,24 @@ pty_submit_command(const char *s, void *udata)
 	 */
 	if (pty->ts_buffer != NULL)
 		pty_recreate_ts_buffer(pty);
+
+	if (use_file) {
+		if (pty->fp == NULL) {
+			buffer_insert(pty->ts_ocursor, strerror(errno),
+			    strlen(strerror(errno)));
+		} else {
+			while ((n = fread(buf, sizeof(char), sizeof(buf),
+			    pty->fp)) > 0)
+				buffer_insert(pty->ts_ocursor, buf, n);
+		}
+		statbar_update_status(pty->statbar, STATBAR_STATE_FILE_SAVED,
+		    0, 0, buffer_rows(pty->ts_buffer));
+
+		buffer_add_listener(pty->ts_buffer, pty_file_updated, pty);
+
+		pty_show_output(pty);
+		return;
+	}
 
 	sh = getenv("SHELL");
 	if (sh == NULL || sh[0] == '\0')
@@ -453,6 +532,12 @@ pty_free(struct pty *pty)
 		pty_remove_slave(pty, pty->slaves[pty->n_slaves-1]);
 	if (pty->slaves != NULL)
 		free(pty->slaves);
+
+	if (pty->fp != NULL)
+		fclose(pty->fp);
+
+	if (pty->file != NULL)
+		free(pty->file);
 
 	if (pty->master != NULL)
 		pty_remove_slave(pty->master, pty);

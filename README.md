@@ -1,20 +1,41 @@
 # vtsh
 
-vtsh(1) is a mashup of *a virtual terminal* (vt) and a command interpreter
-a.k.a. *shell* (sh) for Unix-like operating systems such as Linux. The
-output of commands go to their own editable and viewable buffers,
-the output can be used for launching new commands and the output
+*vtsh* is a mashup of *a virtual terminal* (vt) and a command interpreter
+a.k.a. *shell* (sh) for Unix-like operating systems such as Linux and
+OpenBSD. It could also be thought *vtsh* means *vertical tabs of shells*.
+
+*vtsh* is also a text editor, but *vtsh* is created foremost for
+interacting with commands: the text editing facility come as a very
+useful side effect. Nevertheless, *vtsh* can be used as a text editor
+for all purposes.
+
+In *vtsh*, the output of commands go to their own editable and viewable
+buffers, the output can be used for launching new commands and the output
 buffer can be used for interacting with the backend program in a
-linear or non-linear fashion. It could also be thought *vtsh* means
-*vertical tabs of shells*.
+linear or non-linear fashion. The buffers can also be saved to file, or
+the buffer contents can be redirected as input to other commands.
+
+In other words, *vtsh* is like a command shell in Unix-like systems, but
+*vtsh* is implemented for the screen-based devices instead of paper
+teletype devices, this time using the advantages that screen-based devices
+offer, unlike the traditional line-based shells.
+
+## Screenshots
 
 See the [screenshot](https://namhas.dev/vtsh.png) showing various
-features and see the [animated screenshot](https://namhas.dev/vtsh-ed.gif)
+features.
+
+See also the [animated screenshot](https://namhas.dev/vtsh-ed.gif)
 showing *vtsh* running line-based editor from 1970s using *vtsh*'s
 *slave buffers* and *buffer redirection* achieving cursor-addressable
-editing without code modifications to the original *ed* editor.
+editing without code modifications to the original *ed* editor. It means
+even the venerable *ed* gains screen-based editing functionality when used
+through *vtsh*, even though editing in *vtsh* does not require the use of
+the *ed* editor.
 
-It also an exercise in taking the Unix philosophy to the extreme
+## Original inspiration
+
+*vtsh* is an exercise in taking the Unix philosophy to the extreme
 in the footsteps of e.g. [acme](http://acme.cat-v.org/)
 editor/user interface for
 programmers that was originally created for the Plan 9 operating
@@ -145,12 +166,16 @@ i.e. this is useful with e.g. 'ed'.
   command's output (preliminary proof of concept is implemented, and
   a preliminary proof of concept is also implemented in form of slave
   buffers).
-* Add support for e.g. ':file' to the command bar, so that files can be
-  edited and saved with ease.
+* Monitor file fd for changes when editing files so that changes to
+  underlying file are not ignored.
 * Add support for some essential state such as current working directory
   that is necessary when not using an interactive shell session (current
   working directory is visible, but cannot be changed).
 * Distinguish slave buffers from non-slave buffers.
+
+## Known issues
+
+* The "unsaved buffer" state is set even if only cursor is moved.
 
 ## Unique keyboard focus system
 
@@ -192,6 +217,7 @@ The bindings here are loosely-based on Emacs bindings.
 * **Ctrl+l** Recenter.
 * **Ctrl+o** Open line.
 * **Backspace** Delete character on the left.
+* **Ctrl+x Ctrl+s** Save file.
 
 ### Misc
 * **Alt+q** Quit.

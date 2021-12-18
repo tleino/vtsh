@@ -45,6 +45,7 @@ struct editor;
 
 static int	pty_create_cmd(struct pty *);
 static int	pty_create_ts(struct pty *);
+static void	pty_recreate_ts_buffer(struct pty *);
 static void	pty_submit_command(const char *, void *);
 static void	pty_submit_stdin(const char *, void *);
 static void	pty_process_events(int, void *);
@@ -255,11 +256,8 @@ pty_submit_command(const char *s, void *udata)
 			write(master->ptyfd, delim, strlen(delim));
 		}
 
-		buffer_clear(pty->ts_buffer);
-		pty->ts_icursor->row = 0;
-		pty->ts_icursor->col = 0;
-		pty->ts_ocursor->row = 0;
-		pty->ts_ocursor->col = 0;
+		if (pty->ts_buffer != NULL)
+			pty_recreate_ts_buffer(pty);
 		pty_show_output(pty);
 		return;
 	}
@@ -280,22 +278,8 @@ pty_submit_command(const char *s, void *udata)
 	/*
 	 * Clear previous buffer.
 	 */
-	if (pty->ts_buffer != NULL) {
-		buffer_cursor_free(pty->ts_icursor);
-		buffer_cursor_free(pty->ts_ocursor);
-		buffer_free(pty->ts_buffer);
-		if ((pty->ts_buffer = buffer_create()) == NULL)
-			err(1, "buffer");
-		if ((pty->ts_icursor = buffer_cursor_create(pty->ts_buffer))
-		    == NULL)
-			err(1, "input_cursor");
-		if ((pty->ts_ocursor = buffer_cursor_create(pty->ts_buffer))
-		    == NULL)
-			err(1, "output_cursor");
-
-		editor_set_cursor(pty->ts_editor, pty->ts_icursor,
-		    pty->ts_ocursor);
-	}
+	if (pty->ts_buffer != NULL)
+		pty_recreate_ts_buffer(pty);
 
 	sh = getenv("SHELL");
 	if (sh == NULL || sh[0] == '\0')
@@ -444,6 +428,22 @@ pty_remove_slave(struct pty *pty, struct pty *slave)
 		memmove(dst, src, len);
 	}
 	pty->n_slaves--;
+}
+
+static void
+pty_recreate_ts_buffer(struct pty *pty)
+{
+	buffer_cursor_free(pty->ts_icursor);
+	buffer_cursor_free(pty->ts_ocursor);
+	buffer_free(pty->ts_buffer);
+	if ((pty->ts_buffer = buffer_create()) == NULL)
+		err(1, "buffer");
+	if ((pty->ts_icursor = buffer_cursor_create(pty->ts_buffer)) == NULL)
+		err(1, "input_cursor");
+	if ((pty->ts_ocursor = buffer_cursor_create(pty->ts_buffer)) == NULL)
+		err(1, "output_cursor");
+
+	editor_set_cursor(pty->ts_editor, pty->ts_icursor, pty->ts_ocursor);
 }
 
 void

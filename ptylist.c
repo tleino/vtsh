@@ -39,6 +39,8 @@ struct ptylist {
 	int x_on;
 	struct widget *widget;
 	struct layout *vbox;
+	struct ptylist *first;
+	struct ptylist *next;
 };
 
 static int		 ptylist_keypress(XKeyEvent *, void *);
@@ -85,9 +87,15 @@ void
 ptylist_free(struct ptylist *ptylist)
 {
 	int i;
+	struct ptylist *np, *next;
 
 	for (i = 0; i < ptylist->n_ptys; i++)
 		pty_free(ptylist->ptys[i]);
+
+	for (np = ptylist->first; np != NULL; np = next) {
+		next = np->next;
+		free(np);
+	}	
 
 	if (ptylist->vbox != NULL)
 		layout_free(ptylist->vbox);
@@ -184,6 +192,9 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 	struct widget *root, *ptywidget;
 	int i;
 	struct pty *pty;
+	extern struct dpy *dpy;
+	struct ptylist *np;
+	XEvent e;
 
 	sym = XkbKeycodeToKeysym(DPY(ptylist->dpy), xkey->keycode, 0,
 	    (xkey->state & ShiftMask) ? 1 : 0);
@@ -201,6 +212,15 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 		return 0;
 
 	switch (sym) {
+	case XK_n:
+		np = ptylist_create("vtsh", NULL);
+		np->next = ptylist->first;
+		ptylist->first = np;
+		XSync(DPY(dpy), False);
+		do {
+			XMaskEvent(DPY(dpy), StructureNotifyMask, &e);
+		} while (e.type != MapNotify);
+		return 1;		
 	case XK_space:
 	case XK_Insert:
 		pty = ptylist_add_pty(ptylist, NULL);

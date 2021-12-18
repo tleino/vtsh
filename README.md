@@ -220,6 +220,7 @@ The bindings here are loosely-based on Emacs bindings.
 * **Ctrl+x Ctrl+s** Save file.
 
 ### Misc
+* **Alt+n** Open new window.
 * **Alt+q** Quit.
 * **Alt+a** Dump object tree to stdout (only if -DDEBUG is enabled).
 

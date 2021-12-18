@@ -91,8 +91,8 @@ run_event_loop()
 	fd_set rfds;
 	size_t nready, i, maxfd;
 
-	if (n_idles > 0)
-		idles[0].handler(idles[0].udata);
+	for (i = 0; i < n_idles; i++)
+		idles[i].handler(idles[i].udata);
 
 	FD_ZERO(&rfds);
 
@@ -111,8 +111,8 @@ run_event_loop()
 	while (have_xevents()) {
 		sources[0].handler(sources[i].fd, sources[i].udata);
 
-		if (n_idles > 0)
-			idles[0].handler(idles[0].udata);
+		for (i = 0; i < n_idles; i++)
+			idles[i].handler(idles[i].udata);
 	}
 
 	nready = select(maxfd + 1, &rfds, NULL, NULL, NULL);

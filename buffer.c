@@ -275,8 +275,9 @@ buffer_insert_row(struct buffer *buffer, int row)
 		    sizeof(*buffer->rows), &buffer->max_rows) == -1)
 			return -1;
 
-	memmove(&buffer->rows[row+1], &buffer->rows[row],
-	    (buffer->n_rows - row) * sizeof(*buffer->rows));
+	if (row < buffer->n_rows)
+		memmove(&buffer->rows[row+1], &buffer->rows[row],
+		    (buffer->n_rows - row) * sizeof(*buffer->rows));
 
 	if (buffer->n_rows - row > 0)
 		broadcast_update(buffer, row, 0, buffer->n_rows-1, 0,
@@ -555,6 +556,11 @@ buffer_insert(struct cursor *cursor, const char *data, size_t len)
 			n = 1;
 		else if (wc == (wchar_t) '\n') {
 			CURSOR_ROW(cursor)++;
+
+			if (buffer->n_rows == 0)
+				if (buffer_insert_row(buffer, 0) == -1)
+					return -1;
+
 			if (buffer_insert_row(cursor->buffer,
 			    CURSOR_ROW(cursor)) == -1)
 				return -1;

@@ -451,6 +451,8 @@ pty_free(struct pty *pty)
 {
 	while (pty->n_slaves)
 		pty_remove_slave(pty, pty->slaves[pty->n_slaves-1]);
+	if (pty->slaves != NULL)
+		free(pty->slaves);
 
 	if (pty->master != NULL)
 		pty_remove_slave(pty->master, pty);

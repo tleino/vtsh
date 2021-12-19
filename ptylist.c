@@ -21,6 +21,8 @@
 #include "widget.h"
 #include "layout.h"
 #include "editor.h"
+#include "xevent.h"
+#include "font.h"
 
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
@@ -48,6 +50,12 @@ static void		 ptylist_focus_change(int, void *);
 static struct pty	*ptylist_add_pty(struct ptylist *, struct pty *);
 static int		 ptylist_find_pty(struct ptylist *, struct widget *);
 static struct pty	*ptylist_find_focus(struct ptylist *);
+static void		 ptylist_destroy(void *);
+static void		 ptylist_create_new_window(void);
+
+static int		 n_ptylist;
+static int		 ptylist_i = 1;
+struct ptylist		*ptylist_root;
 
 struct ptylist *
 ptylist_create(const char *name, struct widget *parent)
@@ -77,31 +85,83 @@ ptylist_create(const char *name, struct widget *parent)
 	widget_show(WIDGET(ptylist->vbox));
 	widget_show(WIDGET(ptylist));
 
+	add_destroy_handler(WIDGET(ptylist)->window, ptylist_destroy, ptylist);
+
+	if (n_ptylist == 0)
+		ptylist_root = ptylist;
+	n_ptylist++;
+
 	return ptylist;
 fail:
 	ptylist_free(ptylist);
 	return NULL;	
 }
 
+static void
+ptylist_destroy(void *udata)
+{
+	struct ptylist *ptylist = udata;
+	extern struct dpy *dpy;
+	
+	XSync(DPY(dpy), False);
+	font_close();
+
+	ptylist_free(ptylist);
+}
+
+void
+ptylist_free_all()
+{
+	struct ptylist *np, *next;
+
+	if (ptylist_root) {
+		for (np = ptylist_root->first; np != NULL; np = next) {
+			next = np->next;
+			free(np);
+			n_ptylist--;
+		}
+		free(ptylist_root);
+		ptylist_root = NULL;
+		n_ptylist--;
+	}
+}
+
 void
 ptylist_free(struct ptylist *ptylist)
 {
 	int i;
-	struct ptylist *np, *next;
+	struct ptylist *np;
+	extern int running;
+
+	if (ptylist == ptylist_root) {
+		ptylist_root = ptylist_root->first;
+		if (ptylist_root != NULL && ptylist_root->first != NULL)
+			ptylist_root->first = ptylist_root->first->next;
+	} else if (ptylist_root->first == ptylist) {
+		ptylist_root->first = ptylist_root->first->next;
+	} else {
+		np = ptylist_root->first;
+		while (np) {
+			if (np->next == ptylist) {
+				np->next = np->next->next;
+				break;
+			}
+			np = np->next;
+		}
+	}
 
 	for (i = 0; i < ptylist->n_ptys; i++)
 		pty_free(ptylist->ptys[i]);
-
-	for (np = ptylist->first; np != NULL; np = next) {
-		next = np->next;
-		free(np);
-	}	
 
 	if (ptylist->vbox != NULL)
 		layout_free(ptylist->vbox);
 
 	widget_free(WIDGET(ptylist));
 	free(ptylist);
+
+	n_ptylist--;
+	if (n_ptylist == 0)
+		running = 0;
 }
 
 static struct pty *
@@ -184,6 +244,25 @@ ptylist_focus_change(int state, void *udata)
 		editor_shrink(pty->ts_editor);
 }
 
+static void
+ptylist_create_new_window()
+{
+	struct ptylist *np;
+	XEvent e;
+	extern struct dpy *dpy;
+	char buf[16];
+
+	snprintf(buf, sizeof(buf), "vtsh%d", ++ptylist_i);
+
+	np = ptylist_create(buf, NULL);
+	np->next = ptylist_root->first;
+	ptylist_root->first = np;
+	XSync(DPY(dpy), False);
+	do {
+		XMaskEvent(DPY(dpy), StructureNotifyMask, &e);
+	} while (e.type != MapNotify);
+}
+
 static int
 ptylist_keypress(XKeyEvent *xkey, void *udata)
 {
@@ -193,8 +272,6 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 	int i;
 	struct pty *pty;
 	extern struct dpy *dpy;
-	struct ptylist *np;
-	XEvent e;
 
 	sym = XkbKeycodeToKeysym(DPY(ptylist->dpy), xkey->keycode, 0,
 	    (xkey->state & ShiftMask) ? 1 : 0);
@@ -213,13 +290,7 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 
 	switch (sym) {
 	case XK_n:
-		np = ptylist_create("vtsh", NULL);
-		np->next = ptylist->first;
-		ptylist->first = np;
-		XSync(DPY(dpy), False);
-		do {
-			XMaskEvent(DPY(dpy), StructureNotifyMask, &e);
-		} while (e.type != MapNotify);
+		ptylist_create_new_window();
 		return 1;		
 	case XK_space:
 	case XK_Insert:

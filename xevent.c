@@ -24,7 +24,7 @@
 
 typedef enum handler_type {
 	HANDLER_TYPE_KEYPRESS, HANDLER_TYPE_EXPOSE, HANDLER_TYPE_RESIZE,
-	HANDLER_TYPE_TAKEFOCUS, HANDLER_TYPE_BUTTON
+	HANDLER_TYPE_TAKEFOCUS, HANDLER_TYPE_BUTTON, HANDLER_TYPE_DELWIN
 } HandlerType;
 
 struct event_handler {
@@ -37,6 +37,7 @@ struct event_handler {
 		ResizeHandler resize;
 		FocusHandler focus;
 		ButtonHandler button;
+		DestroyHandler destroy;
 	} v;
 };
 
@@ -59,6 +60,20 @@ add_keypress_handler(Window window, KeypressHandler handler, void *udata)
 
 	handlers[n_handlers++] = (struct event_handler) {
 		HANDLER_TYPE_KEYPRESS, window, udata, { .keypress = handler }
+	};
+	return 0;
+}
+
+int
+add_destroy_handler(Window window, DestroyHandler handler, void *udata)
+{
+	if (max_handlers == n_handlers)
+		if (grow_array((void **) &handlers, sizeof(*handlers),
+		    &max_handlers) == -1)
+			return -1;
+
+	handlers[n_handlers++] = (struct event_handler) {
+		HANDLER_TYPE_DELWIN, window, udata, { .destroy = handler }
 	};
 	return 0;
 }
@@ -180,15 +195,12 @@ run_xevent_handlers(XEvent *event, HandlerType type, Window window)
 			handlers[i].v.resize(
 			    &event->xconfigure, handlers[i].udata);
 			break;
+		case HANDLER_TYPE_DELWIN:
+			handlers[i].v.destroy(handlers[i].udata);
+			break;
 		case HANDLER_TYPE_TAKEFOCUS:
-			if (event->xclient.message_type ==
-			    XInternAtom(DPY(dpy), "WM_PROTOCOLS", False) &&
-			    event->xclient.format == 32 &&
-			    event->xclient.data.l[0] == XInternAtom(DPY(dpy),
-			    "WM_TAKE_FOCUS", False))
-				handlers[i].v.focus(
-				    event->xclient.data.l[1],
-				    handlers[i].udata);
+			handlers[i].v.focus(event->xclient.data.l[1],
+			    handlers[i].udata);
 			break;
 		default:
 			assert(0);
@@ -223,8 +235,20 @@ handle_xevent(XEvent *event)
 		    event->xkey.window);
 		break;
 	case ClientMessage:
-		run_xevent_handlers(event, HANDLER_TYPE_TAKEFOCUS,
-		    event->xclient.window);
+		if (event->xclient.message_type ==
+		    XInternAtom(DPY(dpy), "WM_PROTOCOLS", False) &&
+		    event->xclient.format == 32 &&
+		    event->xclient.data.l[0] == XInternAtom(DPY(dpy),
+		    "WM_TAKE_FOCUS", False))
+			run_xevent_handlers(event, HANDLER_TYPE_TAKEFOCUS,
+			    event->xclient.window);
+		else if (event->xclient.message_type ==
+		    XInternAtom(DPY(dpy), "WM_PROTOCOLS", False) &&
+		    event->xclient.format == 32 &&
+		    event->xclient.data.l[0] == XInternAtom(DPY(dpy),
+		    "WM_DELETE_WINDOW", False))
+			run_xevent_handlers(event, HANDLER_TYPE_DELWIN,
+			    event->xclient.window);
 		break;
 	}
 	return;

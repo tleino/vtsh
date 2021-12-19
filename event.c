@@ -23,6 +23,7 @@
 #include <sys/select.h>
 #include <err.h>
 #include <string.h>
+#include <stdlib.h>
 
 struct event_source {
 	int fd;
@@ -68,6 +69,31 @@ add_idle_handler(IdleHandler handler, void *udata)
 }
 
 void
+remove_idle_handler(IdleHandler handler, void *udata)
+{
+	size_t i;
+
+	for (i = 0; i < n_idles; i++)
+		if (idles[i].handler == handler && idles[i].udata == udata)
+			break;
+
+	if (i == n_idles)
+		return;
+
+	if (i+1 < n_idles)
+		memmove(&idles[i], &idles[i+1], (n_idles - i) *
+		    sizeof(struct idle_handler));
+	n_idles--;
+	if (n_idles == 0) {
+		if (max_idles > 0) {
+			free(idles);
+			idles = NULL;
+			max_sources = 0;
+		}
+	}
+}
+
+void
 remove_event_source(int fd)
 {
 	size_t i;
@@ -83,6 +109,13 @@ remove_event_source(int fd)
 		memmove(&sources[i], &sources[i+1], (n_sources - i) *
 		    sizeof(struct event_source));
 	n_sources--;
+	if (n_sources == 0) {
+		if (max_sources > 0) {
+			free(sources);
+			sources = NULL;
+			max_sources = 0;
+		}
+	}
 }
 
 void

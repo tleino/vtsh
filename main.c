@@ -79,7 +79,7 @@ main(int argc, char *argv[])
 	font_close();
 
 	XSync(DPY(dpy), False);
-	ptylist_free(ptylist);
+	ptylist_free_all();
 
 	XSync(DPY(dpy), False);
 	dpy_free(dpy);

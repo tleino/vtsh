@@ -65,7 +65,7 @@ static struct widget	*_widget_create(int, unsigned long, const char *,
 
 static void		 widget_notify_focus_change(struct widget *, int);
 
-static int		 widget_enable_takefocus(struct widget *);
+static int		 widget_enable_protocols(struct widget *);
 static void		 widget_takefocus(Time, void *);
 
 static void		 widget_root_idle(void *);
@@ -692,7 +692,7 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 	widget_ensure_focus(widget);
 
 	if (widget->parent == NULL)
-		widget_enable_takefocus(widget);
+		widget_enable_protocols(widget);
 
 	return widget;
 }
@@ -848,16 +848,17 @@ widget_remove_child(struct widget *widget, struct widget *child)
 }
 
 static int
-widget_enable_takefocus(struct widget *widget)
+widget_enable_protocols(struct widget *widget)
 {
-	Atom takefocus;
+	Atom atoms[2];
 	extern struct dpy *dpy;
 
 	add_focus_handler(widget->window, widget_takefocus, widget);
 
-	takefocus = XInternAtom(DPY(dpy), "WM_TAKE_FOCUS", False);
+	atoms[0] = XInternAtom(DPY(dpy), "WM_TAKE_FOCUS", False);
+	atoms[1] = XInternAtom(DPY(dpy), "WM_DELETE_WINDOW", False);
 
-	if (!XSetWMProtocols(DPY(dpy), widget->window, &takefocus, 1))
+	if (!XSetWMProtocols(DPY(dpy), widget->window, atoms, 2))
 		return -1;
 	return 0;
 }
@@ -898,6 +899,9 @@ widget_free(struct widget *widget)
 
 	if (widget->window != 0)
 		remove_handlers_for_window(widget->window);
+
+	if (widget->parent == NULL)
+		remove_idle_handler(widget_root_idle, widget);
 
 	widget_hide(widget);
 

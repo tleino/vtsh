@@ -24,6 +24,7 @@ typedef void (*IdleHandler)(void *);
 int	 add_event_source(int, EventHandler, void *);
 int	 add_idle_handler(IdleHandler, void *);
 void	 remove_event_source(int);
+void	 remove_idle_handler(IdleHandler, void *);
 void	 run_event_loop(void);
 
 #endif

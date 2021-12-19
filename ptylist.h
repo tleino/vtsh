@@ -23,5 +23,6 @@ struct widget;
 
 struct ptylist	*ptylist_create(const char *, struct widget *);
 void		 ptylist_free(struct ptylist *);
+void		 ptylist_free_all(void);
 
 #endif

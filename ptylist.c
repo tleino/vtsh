@@ -137,9 +137,9 @@ ptylist_free(struct ptylist *ptylist)
 		ptylist_root = ptylist_root->first;
 		if (ptylist_root != NULL && ptylist_root->first != NULL)
 			ptylist_root->first = ptylist_root->first->next;
-	} else if (ptylist_root->first == ptylist) {
+	} else if (ptylist_root != NULL && ptylist_root->first == ptylist) {
 		ptylist_root->first = ptylist_root->first->next;
-	} else {
+	} else if (ptylist_root != NULL) {
 		np = ptylist_root->first;
 		while (np) {
 			if (np->next == ptylist) {

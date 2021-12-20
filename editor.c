@@ -286,7 +286,6 @@ editor_prompt_submit(const char *s, void *udata)
 			editor_scroll_into_view(editor, editor->cursor->row,
 			    editor->cursor->col);
 		}
-		printf("fsearch\n");
 		break;
 	case PROMPT_ACTION_RSEARCH:
 		rows = buffer_rows(editor->buffer);

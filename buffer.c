@@ -132,7 +132,8 @@ buffer_u8str_at(
 	char *dst,
 	size_t len)
 {
-	size_t i, tmp, outlen;
+	size_t i, outlen;
+	int tmp;
 
 	if (row >= buffer->n_rows)
 		return 0;
@@ -149,7 +150,7 @@ buffer_u8str_at(
 	    len >= MB_CUR_MAX + 1; i++) {
 		if ((tmp = wctomb(dst, buffer->rows[row].cols[i])) == -1)
 			continue;
-		dst++;
+		dst += tmp;
 		len -= tmp;
 		outlen += tmp;
 	}

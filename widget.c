@@ -52,6 +52,7 @@ static void		 widget_expose(XExposeEvent *, void *);
 static void		 widget_resize(XConfigureEvent *, void *);
 static void		 widget_keypress(XKeyEvent *, void *);
 static void		 widget_mousepress(XButtonEvent *, void *);
+static void		 widget_motion(XMotionEvent *, void *);
 
 static int		 widget_root_keypress(XKeyEvent *, void *);
 
@@ -222,6 +223,15 @@ widget_mousepress(XButtonEvent *xbutton, void *udata)
 
 	if (widget->mousepress)
 		widget->mousepress(xbutton, widget->mousepress_udata);
+}
+
+static void
+widget_motion(XMotionEvent *xmotion, void *udata)
+{
+	struct widget *widget = udata;
+
+	if (widget->motion)
+		widget->motion(xmotion, widget->motion_udata);
 }
 
 /*
@@ -534,6 +544,14 @@ widget_set_mousepress_callback(struct widget *widget,
 }
 
 void
+widget_set_motion_callback(struct widget *widget,
+	WidgetMotion motion, void *udata)
+{
+	widget->motion = motion;
+	widget->motion_udata = udata;
+}
+
+void
 widget_set_draw_callback(struct widget *widget, WidgetDraw draw, void *udata)
 {
 	extern struct dpy *dpy;
@@ -653,6 +671,8 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 	v = 0;
 
 	widget->event_mask |= ButtonPressMask;
+	widget->event_mask |= ButtonReleaseMask;
+	widget->event_mask |= ButtonMotionMask;
 	a.event_mask = widget->event_mask;
 	v |= CWEventMask;
 
@@ -688,6 +708,8 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 		add_keypress_handler(widget->window, widget_keypress, widget);
 	if (widget->event_mask & ButtonPressMask)
 		add_button_handler(widget->window, widget_mousepress, widget);
+	if (widget->event_mask & ButtonMotionMask)
+		add_motion_handler(widget->window, widget_motion, widget);
 
 	widget_ensure_focus(widget);
 

@@ -24,7 +24,8 @@
 
 typedef enum handler_type {
 	HANDLER_TYPE_KEYPRESS, HANDLER_TYPE_EXPOSE, HANDLER_TYPE_RESIZE,
-	HANDLER_TYPE_TAKEFOCUS, HANDLER_TYPE_BUTTON, HANDLER_TYPE_DELWIN
+	HANDLER_TYPE_TAKEFOCUS, HANDLER_TYPE_BUTTON, HANDLER_TYPE_DELWIN,
+	HANDLER_TYPE_MOTION
 } HandlerType;
 
 struct event_handler {
@@ -38,6 +39,7 @@ struct event_handler {
 		FocusHandler focus;
 		ButtonHandler button;
 		DestroyHandler destroy;
+		MotionHandler motion;
 	} v;
 };
 
@@ -88,6 +90,20 @@ add_button_handler(Window window, ButtonHandler handler, void *udata)
 
 	handlers[n_handlers++] = (struct event_handler) {
 		HANDLER_TYPE_BUTTON, window, udata, { .button = handler }
+	};
+	return 0;
+}
+
+int
+add_motion_handler(Window window, MotionHandler handler, void *udata)
+{
+	if (max_handlers == n_handlers)
+		if (grow_array((void **) &handlers, sizeof(*handlers),
+		    &max_handlers) == -1)
+			return -1;
+
+	handlers[n_handlers++] = (struct event_handler) {
+		HANDLER_TYPE_MOTION, window, udata, { .motion = handler }
 	};
 	return 0;
 }
@@ -183,6 +199,10 @@ run_xevent_handlers(XEvent *event, HandlerType type, Window window)
 			handlers[i].v.button(
 			    &event->xbutton, handlers[i].udata);
 			break;
+		case HANDLER_TYPE_MOTION:
+			handlers[i].v.motion(
+			    &event->xmotion, handlers[i].udata);
+			break;
 		case HANDLER_TYPE_KEYPRESS:
 			handlers[i].v.keypress(
 			    &event->xkey, handlers[i].udata);
@@ -223,8 +243,13 @@ handle_xevent(XEvent *event)
 		}
 		break;
 	case ButtonPress:
+	case ButtonRelease:
 		run_xevent_handlers(event, HANDLER_TYPE_BUTTON,
 		    event->xbutton.window);
+		break;
+	case MotionNotify:
+		run_xevent_handlers(event, HANDLER_TYPE_MOTION,
+		    event->xmotion.window);
 		break;
 	case ConfigureNotify:
 		run_xevent_handlers(event, HANDLER_TYPE_RESIZE,

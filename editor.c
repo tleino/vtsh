@@ -45,9 +45,10 @@ static void	 editor_expose(int, int, int, int, void *);
 static void	 editor_focus(int focused, void *);
 static int	 editor_keypress(XKeyEvent *, void *);
 static int	 editor_mousepress(XButtonEvent *, void *);
+static int	 editor_motion(XMotionEvent *, void *);
 static int	 editor_draw_cursor(struct editor *, struct cursor *, int);
 static void	 editor_update_geometry(void *);
-static void	 editor_find_cursor_pos(struct editor *, XButtonEvent *,
+static void	 editor_find_cursor_pos(struct editor *, int, int,
 		    int *, int *);
 static void	 editor_page_up(struct editor *);
 static void	 editor_page_down(struct editor *);
@@ -344,6 +345,7 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 	    editor);
 	widget_set_mousepress_callback(WIDGET(editor), editor_mousepress,
 	    editor);
+	widget_set_motion_callback(WIDGET(editor), editor_motion, editor);
 
 	editor->gc = XCreateGC(DPY(dpy), WINDOW(editor), 0, NULL);
 
@@ -417,13 +419,13 @@ get_line_at_cursor(struct cursor *cursor, int begin_col)
 }
 
 static void
-editor_find_cursor_pos(struct editor *editor, XButtonEvent *e, int *row,
+editor_find_cursor_pos(struct editor *editor, int ex, int ey, int *row,
     int *col)
 {
 	int x;
 	wchar_t ch;
 
-	*row = e->y / font_height();
+	*row = ey / font_height();
 	*row += editor->top_row;
 
 	x = 100;
@@ -433,7 +435,7 @@ editor_find_cursor_pos(struct editor *editor, XButtonEvent *e, int *row,
 		if (ch == '\0')
 			ch = ' ';
 		x += font_str_width_wc(x-100, &ch, 1);
-	} while (x < e->x);
+	} while (x < ex);
 }
 
 static int
@@ -495,17 +497,34 @@ editor_page_down(struct editor *vc)
 }
 
 static int
+editor_motion(XMotionEvent *e, void *udata)
+{
+	struct editor *editor = udata;
+	int row, col;
+
+	editor_draw_cursor(editor, editor->cursor, 1);
+	editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
+	buffer_set_cursor(editor->buffer, editor->cursor, row, col);
+	editor_scroll_into_view(editor, editor->cursor->row,
+	    editor->cursor->col);
+	return 1;
+}
+
+static int
 editor_mousepress(XButtonEvent *e, void *udata)
 {
 	struct editor *editor = udata;
 	int row, col;
+
+	if (e->type == ButtonRelease)
+		return 0;
 
 	widget_focus(WIDGET(editor));
 
 	switch (e->button) {
 	case 1:
 		editor_draw_cursor(editor, editor->cursor, 1);
-		editor_find_cursor_pos(editor, e, &row, &col);
+		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
 		editor->cursor->row = row;
 		editor->cursor->col = col;
 		editor_draw_cursor(editor, editor->cursor, 0);

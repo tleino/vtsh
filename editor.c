@@ -243,10 +243,91 @@ editor_set_resize_handler(struct editor *editor, EditResizeHandler resize,
 	editor->resize_udata = udata;
 }
 
+static void
+editor_prompt_submit(const char *s, void *udata)
+{
+	struct editor *editor = udata;
+	int i, rows;
+	int val;
+	static char dst[4096];
+	size_t n;
+
+	switch (editor->prompt_action) {
+	case PROMPT_ACTION_GOTO:
+		val = atoi(s);
+		if (val <= 0)
+			return;
+		val--;
+		buffer_set_cursor(editor->buffer, editor->cursor, val, 0);
+		editor_scroll_into_view(editor, editor->cursor->row,
+		    editor->cursor->col);
+		break;
+	case PROMPT_ACTION_FSEARCH:
+		rows = buffer_rows(editor->buffer);
+		for (i = editor->cursor->row; i < rows; i++) {
+			n = buffer_u8str_at(editor->buffer, i, 0, -1,
+			    dst, sizeof(dst)-1);
+			dst[n] = '\0';
+			if (strstr(dst, s) != NULL)
+				break;
+		}
+		if (i == rows)
+			for (i = editor->cursor->row; i >= 0; i--) {
+				n = buffer_u8str_at(editor->buffer, i, 0, -1,
+				    dst, sizeof(dst)-1);
+				dst[n] = '\0';
+				if (strstr(dst, s) != NULL)
+					break;
+			}
+
+		if (i != rows) {
+			buffer_set_cursor(editor->buffer, editor->cursor, i,
+			    0);
+			editor_scroll_into_view(editor, editor->cursor->row,
+			    editor->cursor->col);
+		}
+		printf("fsearch\n");
+		break;
+	case PROMPT_ACTION_RSEARCH:
+		rows = buffer_rows(editor->buffer);
+		for (i = editor->cursor->row; i >= 0; i--) {
+			n = buffer_u8str_at(editor->buffer, i, 0, -1,
+			    dst, sizeof(dst)-1);
+			dst[n] = '\0';
+			if (strstr(dst, s) != NULL)
+				break;
+		}
+		if (i == rows)
+			for (i = editor->cursor->row; i < rows; i++) {
+				n = buffer_u8str_at(editor->buffer, i, 0, -1,
+				    dst, sizeof(dst)-1);
+				dst[n] = '\0';
+				if (strstr(dst, s) != NULL)
+					break;
+			}
+
+		if (i != rows) {
+			buffer_set_cursor(editor->buffer, editor->cursor, i,
+			    0);
+			editor_scroll_into_view(editor, editor->cursor->row,
+			    editor->cursor->col);
+		}
+		break;
+	default:
+		assert(0);
+	}
+
+	if (editor->prompt) {
+		buffer_clear_row(editor->prompt_buffer, 0);
+		widget_hide(WIDGET(editor->prompt));
+		widget_focus(WIDGET(editor));
+	}
+}
+
 struct editor *
 editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
-	void *udata, int bgcolor, int max_rows, const char *name,
-	struct widget *parent)
+	void *udata, int bgcolor, int max_rows, int no_prompt,
+	const char *name, struct widget *parent)
 {
 	struct editor *editor;
 
@@ -288,6 +369,24 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 	editor_draw_cursor(editor, cursor, 0);
 
 	widget_set_draw_callback(WIDGET(editor), editor_expose, editor);
+
+	if (!no_prompt) {
+		editor->prompt_buffer = buffer_create();
+		if (editor->prompt_buffer)
+			editor->prompt_cursor =
+			    buffer_cursor_create(editor->prompt_buffer);
+		if (editor->prompt_cursor)
+			editor->prompt = editor_create(dpy,
+			    editor->prompt_cursor, editor_prompt_submit,
+			    editor, COLOR_TITLE_FG_NORMAL, 1, 1,
+			    "prompt", parent);
+		if (editor->prompt) {
+			editor->prompt->prompt_parent = editor;
+			WIDGET(editor->prompt)->level = 1;
+			WIDGET_PREFER_WIDTH(editor->prompt) = 9999;
+			widget_hide(WIDGET(editor->prompt));
+		}
+	}
 
 	widget_show(WIDGET(editor));
 	return editor;
@@ -439,12 +538,49 @@ editor_keypress(XKeyEvent *e, void *udata)
 	if (e->state & Mod1Mask || sym == XK_Escape)
 		return 0;
 
+	if (e->state & ControlMask && vc->x_on) {
+		vc->x_on = 0;
+		switch (sym) {
+		case XK_s:	/* bubble up */
+			return 0;
+		case XK_g:
+			if (vc->prompt != NULL) {
+				vc->prompt_action = PROMPT_ACTION_GOTO;
+				widget_show(WIDGET(vc->prompt));
+				widget_focus(WIDGET(vc->prompt));
+			}
+			return 1;
+		}
+	} else if (sym == XK_x && e->state & ControlMask) {
+		vc->x_on = 1;
+		return 1;
+	} else {
+		vc->x_on = 0;
+	}
+
 	if (e->state & ControlMask) {
 		switch (sym) {
-		case XK_x:
+		case XK_g:
+			if (vc->prompt_parent != NULL) {
+				vc->prompt_action = PROMPT_ACTION_NONE;
+				widget_hide(WIDGET(vc));
+				widget_focus(WIDGET(vc->prompt_parent));
+			}
+			return 1;
 		case XK_s:
-			return 0;
-			return 0;
+			if (vc->prompt != NULL) {
+				vc->prompt_action = PROMPT_ACTION_FSEARCH;
+				widget_show(WIDGET(vc->prompt));
+				widget_focus(WIDGET(vc->prompt));
+			}
+			return 1;
+		case XK_r:
+			if (vc->prompt != NULL) {
+				vc->prompt_action = PROMPT_ACTION_RSEARCH;
+				widget_show(WIDGET(vc->prompt));
+				widget_focus(WIDGET(vc->prompt));
+			}
+			return 1;
 		case XK_a:
 			buffer_update_cursor(vc->buffer, vc->cursor, 0,
 			    -vc->cursor->col);

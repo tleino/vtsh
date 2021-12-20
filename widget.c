@@ -731,6 +731,20 @@ widget_show(struct widget *widget)
 		return;
 
 	widget->visible = 1;
+
+	/*
+	 * TODO: We need to make size/pos bogus so that the flush_changes
+	 *       algorithm notices a change when we do update_geometry.
+	 *       However, we need this only in a special case when we have
+	 *       shown a widget, but did not complete flush_changes before
+	 *       hiding the widget again, i.e. these bogus values could be
+	 *       even removed once fixing hide/show logic.
+	 */
+	widget->old_size[0] = 9999;
+	widget->old_size[1] = 9999;
+	widget->old_pos[0] = 0;
+	widget->old_pos[1] = 0;
+
 	widget_update_geometry(widget);	
 
 	if (widget->window != 0) {

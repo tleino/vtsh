@@ -204,7 +204,8 @@ alternatively *Esc*.
 
 ### Editing
 
-The bindings here are loosely-based on Emacs bindings.
+The bindings here are loosely-based on Emacs bindings, casual Emacs users
+should feel at home.
 
 * **Up/Down/Left/Right** Move cursor up/down/left/right.
 * **Ctrl+p/n/b/f** Move cursor up/down/left/right (alternative).
@@ -218,6 +219,9 @@ The bindings here are loosely-based on Emacs bindings.
 * **Ctrl+o** Open line.
 * **Backspace** Delete character on the left.
 * **Ctrl+x Ctrl+s** Save file.
+* **Ctrl+x Ctrl+g** Go to line number.
+* **Ctrl+s/r** Search forward/backward.
+* **Ctrl+g** Cancel prompt / action.
 
 ### Misc
 * **Alt+n** Open new window.

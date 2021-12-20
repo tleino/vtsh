@@ -28,6 +28,13 @@ struct widget;
 typedef void (*EditSubmitHandler)(const char *, void *);
 typedef int (*EditResizeHandler)(Window, int *, int *, void *);
 
+typedef enum prompt_action {
+	PROMPT_ACTION_NONE,
+	PROMPT_ACTION_GOTO,
+	PROMPT_ACTION_FSEARCH,
+	PROMPT_ACTION_RSEARCH
+} PromptAction;
+
 struct editor {
 	Window			 window;
 	GC			 gc;
@@ -48,6 +55,14 @@ struct editor {
 	size_t			 begin_colx;	/* TODO */
 	size_t			 begin_col;
 	int			 largest_height;
+	int			 x_on;
+
+	/* TODO: Could combine these prompt things to their own struct */
+	struct buffer		*prompt_buffer;
+	struct cursor		*prompt_cursor;
+	struct editor		*prompt_parent;
+	PromptAction		 prompt_action;
+	struct editor		*prompt;
 
 	struct widget		*widget;
 };
@@ -58,7 +73,7 @@ void		 editor_set_cursor(struct editor *, struct cursor *,
 void		 editor_set_resize_handler(struct editor *,
 		    EditResizeHandler, void *);
 struct editor	*editor_create(struct dpy *, struct cursor *,
-		    EditSubmitHandler, void *, int, int, const char *,
+		    EditSubmitHandler, void *, int, int, int, const char *,
 		    struct widget *);
 void		 editor_shrink(struct editor *);
 void		 editor_free(struct editor *);

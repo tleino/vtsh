@@ -420,7 +420,7 @@ pty_create_cmd(struct pty *pty)
 
 	if ((pty->cmd_editor = editor_create(dpy,
 	    pty->cmd_cursor,
-	    pty_submit_command, pty, COLOR_TITLE_BG_NORMAL, 1,
+	    pty_submit_command, pty, COLOR_TITLE_BG_NORMAL, 1, 1,
 	    "cmd_editor", WIDGET(pty->hbox))) == NULL)
 		return -1;
 
@@ -442,7 +442,7 @@ pty_create_ts(struct pty *pty)
 
 	if ((pty->ts_editor = editor_create(dpy,
 	    pty->ts_icursor,
-	    pty_submit_stdin, pty, COLOR_TEXT_BG, -1, "ts_editor",
+	    pty_submit_stdin, pty, COLOR_TEXT_BG, -1, 0, "ts_editor",
 	    pty->widget)) == NULL)
 		return -1;
 

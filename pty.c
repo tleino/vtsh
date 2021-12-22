@@ -343,7 +343,9 @@ pty_submit_command(const char *s, void *udata)
 		pty_recreate_ts_buffer(pty);
 
 	if (use_file) {
-		if (pty->fp == NULL) {
+		if (pty->fp == NULL && errno == ENOENT) {
+			/* TODO: Indicate this is a new file */
+		} else if (pty->fp == NULL) {
 			buffer_insert(pty->ts_ocursor, strerror(errno),
 			    strlen(strerror(errno)));
 		} else {

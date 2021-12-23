@@ -150,7 +150,14 @@ i.e. this is useful with e.g. 'ed'.
 
 #### Examples
 
+Redirect existing buffer contents to the 'cat' command which writes to
+'/tmp/foobar' file:
+
 	cat >/tmp/foobar<
+
+Open 'README.md' file using 'ed', print the contents of lines 1-10 and then
+replace the same lines with the buffer contents thereby allowing cursor
+editing using 'ed' without code modifications to 'ed':
 
 	ed README.md
 	1,10p

@@ -232,9 +232,6 @@ editor_offset_from_col(struct editor *editor, int row, int col)
 static void
 editor_hscroll(struct editor *editor, int dir)
 {
-	XGlyphInfo extents;
-	wchar_t ch;
-	size_t cols;
 	int x, boundary, add;
 
 	x = editor_offset_from_col(editor, editor->cursor->row,

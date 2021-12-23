@@ -156,6 +156,19 @@ i.e. this is useful with e.g. 'ed'.
 	1,10p
 	1,10c<.
 
+## Files and directories
+
+Opening files and directories is possible by prefixing command by a ":".
+When opening directories have "/" after it to signify it is a directory.
+
+Change to a parent directory:
+
+	:../
+
+Open a file:
+
+	:README.md
+
 ## TODO
 
 * Add more standard features like more Emacs bindings to the editor
@@ -168,9 +181,6 @@ i.e. this is useful with e.g. 'ed'.
   buffers).
 * Monitor file fd for changes when editing files so that changes to
   underlying file are not ignored.
-* Add support for some essential state such as current working directory
-  that is necessary when not using an interactive shell session (current
-  working directory is visible, but cannot be changed).
 * Distinguish slave buffers from non-slave buffers.
 
 ## Known issues

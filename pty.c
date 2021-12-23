@@ -33,6 +33,7 @@
 #endif
 
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -270,10 +271,13 @@ pty_submit_command(const char *s, void *udata)
 	struct pty *pty = udata, *master;
 	struct termios ts;
 	size_t len;
-	int i, send_ts, use_file;
+	int i, send_ts, use_file, use_dir;
 	size_t n;
 	char buf[4096];
 	char *delim = "\x04";
+	struct dirent *ent;
+	char resolved[PATH_MAX + 1];
+	struct stat sb;
 
 	len = strlen(s);
 	send_ts = 0;
@@ -288,13 +292,39 @@ pty_submit_command(const char *s, void *udata)
 
 	if (send_ts == 0 && s[0] == ':' && len > 1) {
 		s++;
+		use_file = 0;
+		use_dir = 0;
 		len--;
-		use_file = 1;
+		if (len > 0 && s[len-1] == '/')
+			use_dir = 1;
+		else
+			use_file = 1;
 
 		if (pty->fp != NULL)
 			fclose(pty->fp);
-		pty->fp = fopen(s, "r");
-		pty->file = strdup(s);
+		if (pty->file != NULL) {
+			free(pty->file);
+			pty->file = NULL;
+		}
+
+		if (use_file) {
+			pty->fp = fopen(s, "r");
+			pty->file = strdup(s);
+		} else {
+			if (realpath(s, resolved) != NULL) {
+				pty->dp = opendir(resolved);
+				if (pty->dp != NULL) {
+					if (fchdir(dirfd(pty->dp)) != -1) {
+						label_set(pty->cwd, resolved);
+						buffer_clear_row(
+						    pty->cmd_buffer, 0);
+						buffer_insert(
+						    pty->cmd_cursor, ":./", 3);
+					} else
+						warn("fchdir %s", resolved);
+				}
+			}
+		}
 	}
 
 	master = pty->master;
@@ -358,6 +388,31 @@ pty_submit_command(const char *s, void *udata)
 
 		buffer_add_listener(pty->ts_buffer, pty_file_updated, pty);
 
+		pty_show_output(pty);
+		return;
+	} else if (use_dir) {
+		if (pty->dp == NULL) {
+			buffer_insert(pty->ts_ocursor, strerror(errno),
+			    strlen(strerror(errno)));
+		} else {
+			while ((ent = readdir(pty->dp)) != NULL) {
+				buffer_insert(pty->ts_ocursor, ":", 1);
+				buffer_insert(pty->ts_ocursor, ent->d_name,
+				    ent->d_namlen);
+				if (lstat(ent->d_name, &sb) == -1)
+					warn("fstat %s", ent->d_name);
+				else {
+					if (S_ISDIR(sb.st_mode))
+						buffer_insert(pty->ts_ocursor,
+						    "/\n", 2);
+					else
+						buffer_insert(pty->ts_ocursor,
+						    "\n", 1);
+				}
+			}
+			closedir(pty->dp);
+			pty->dp = NULL;
+		}
 		pty_show_output(pty);
 		return;
 	}
@@ -525,6 +580,7 @@ pty_recreate_ts_buffer(struct pty *pty)
 		err(1, "output_cursor");
 
 	editor_set_cursor(pty->ts_editor, pty->ts_icursor, pty->ts_ocursor);
+	pty->ts_editor->old_height = 0;	/* TODO: Make editor do this */
 }
 
 void

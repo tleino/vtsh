@@ -20,6 +20,8 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 struct dpy;
 struct editor;
@@ -33,6 +35,7 @@ struct pty {
 	int ptyfd;
 
 	FILE *fp;
+	DIR *dp;
 	char *file;
 	int file_unsaved;
 

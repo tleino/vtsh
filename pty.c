@@ -281,6 +281,8 @@ pty_submit_command(const char *s, void *udata)
 
 	len = strlen(s);
 	send_ts = 0;
+	use_file = 0;
+	use_dir = 0;
 	if (len >= 2 && s[len-2] == '<' && s[len-1] == '.') {
 		send_ts = 1;
 		len -= 2;
@@ -292,8 +294,6 @@ pty_submit_command(const char *s, void *udata)
 
 	if (send_ts == 0 && s[0] == ':' && len > 1) {
 		s++;
-		use_file = 0;
-		use_dir = 0;
 		len--;
 		if (len > 0 && s[len-1] == '/')
 			use_dir = 1;

@@ -52,8 +52,7 @@ struct editor {
 	int			 old_height;
 	int			 top_row;
 	int			 bottom_row;
-	size_t			 begin_colx;	/* TODO */
-	size_t			 begin_col;
+	size_t			 begin_offset;
 	int			 largest_height;
 	int			 x_on;
 

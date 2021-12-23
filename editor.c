@@ -53,6 +53,10 @@ static void	 editor_find_cursor_pos(struct editor *, int, int,
 static void	 editor_page_up(struct editor *);
 static void	 editor_page_down(struct editor *);
 static int	 editor_row_is_visible(struct editor *, int);
+static int	 editor_offset_from_col(struct editor *, int, int);
+static int	 editor_col_from_offset(struct editor *, int, int);
+static void	 editor_hscroll(struct editor *, int);
+static void	 draw_update(int, int, int, int, BufferUpdate, void *udata);
 
 static void
 editor_update_geometry(void *udata)
@@ -150,6 +154,7 @@ editor_draw_cursor(struct editor *editor, struct cursor *cursor, int clear)
 	buffer = cursor->buffer;
 
 	x = 100;
+	x -= editor->begin_offset;
 	y = (cursor->row - editor->top_row) * font_height();
 	ch = buffer_at(buffer, cursor->row, cursor->col);
 	if (ch == '\0')
@@ -178,7 +183,86 @@ editor_focus(int focused, void *udata)
 	editor_draw_cursor(editor, editor->cursor, 0);
 }
 
-void
+/*
+ * Returns cursor column position from pixel x-offset.
+ */
+static int
+editor_col_from_offset(struct editor *editor, int row, int offset)
+{
+	size_t i;
+	XGlyphInfo extents;
+	size_t cols;
+	wchar_t ch;
+	int x;
+
+	font_set(FONT_NORMAL);
+	cols = buffer_cols(editor->buffer, row);
+	x = 0;
+	for (i = 0; i < cols && x < offset; i++) {
+		ch = buffer_at(editor->buffer, row, i);
+		font_extents_wc(&ch, 1, &extents);
+		x += extents.xOff;
+	}
+	return i;
+}
+
+/*
+ * Returns pixel x-offset for cursor position.
+ */
+static int
+editor_offset_from_col(struct editor *editor, int row, int col)
+{
+	static char dst[4096];
+	size_t len, offset;
+
+	if (col > 0)
+		len = buffer_u8str_at(editor->buffer, row, 0, col-1, dst,
+		    sizeof(dst)-1);
+	else
+		len = 0;
+
+	font_set(FONT_NORMAL);
+	offset = font_str_width(0, dst, len);
+	return offset;
+}
+
+/*
+ * Scroll view horizontally when needed.
+ */
+static void
+editor_hscroll(struct editor *editor, int dir)
+{
+	XGlyphInfo extents;
+	wchar_t ch;
+	size_t cols;
+	int x, boundary, add;
+
+	x = editor_offset_from_col(editor, editor->cursor->row,
+	    editor->cursor->col);
+	boundary = WIDGET_WIDTH(editor) - WIDGET_WIDTH(editor) / 3;
+	add = WIDGET_WIDTH(editor) / 3;
+	if (dir == 1 && x - editor->begin_offset < boundary)
+		return;
+	if (dir == -1 && x - editor->begin_offset > (boundary - add))
+		return;
+
+	switch (dir) {
+	case 1:
+		editor->begin_offset += add;
+		break;
+	case -1:
+		if (editor->begin_offset > add)
+			editor->begin_offset -= add;
+		else
+			editor->begin_offset = 0;
+		break;
+	}
+
+	draw_update(editor->top_row, 0, editor->bottom_row, 0,
+	    BUFFER_UPDATE_LINE, editor);
+}
+
+static void
 draw_update(
 	int row,
 	int col,
@@ -677,12 +761,14 @@ editor_keypress(XKeyEvent *e, void *udata)
 			buffer_insert(vc->cursor, "\n", 1);
 		return 1;
 	case XK_Left:
+		editor_hscroll(vc, -1);
 		if (e->state & ShiftMask)
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, -8);
 		else
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, -1);
 		break;
 	case XK_Right:
+		editor_hscroll(vc, 1);
 		if (e->state & ShiftMask)
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, 8);
 		else
@@ -707,6 +793,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 		editor_page_down(vc);
 		return 1;
 	case XK_BackSpace:
+		editor_hscroll(vc, -1);
 		buffer_erase(vc->buffer, vc->cursor);
 		return 1;
 	case XK_Delete:
@@ -727,6 +814,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 		/* TODO: Handle this error case */
 		n = 0;
 	} else {
+		editor_hscroll(vc, 1);
 		buffer_insert(vc->cursor, ch, n);
 		return 1;
 	}
@@ -785,6 +873,35 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 
 	rows = buffer_rows(editor->buffer);
 
+	font_set_bgcolor(editor->bgcolor);
+	font_set_fgcolor(COLOR_TEXT_FG);
+	for (i = from; i <= to; i++) {
+		if (i < editor->top_row)
+			continue;
+		if (i > editor->bottom_row)
+			continue;
+
+		x = 100;
+		y = (i - editor->top_row) * font_height();
+		x -= editor->begin_offset;
+
+		if (y >= WIDGET_HEIGHT(editor))
+			continue;
+
+		if (i < rows) {
+			len = buffer_u8str_at(editor->buffer, i, 0, -1, dst,
+			    sizeof(dst));
+
+			x += font_draw(editor->window, x, y, dst, len);
+			if (WIDGET_WIDTH(editor)-x > 0)
+				font_clear(editor->window, x, y,
+				    WIDGET_WIDTH(editor) - x);
+		}
+		if (WIDGET_WIDTH(editor)-x > 0)
+			font_clear(editor->window, x, y,
+			    WIDGET_WIDTH(editor) - x);
+	}
+
 #ifdef WANT_LINE_NUMBERS
 	font_set_bgcolor(COLOR_TEXT_LINENO);
 	for (i = from; i <= to; i++) {
@@ -817,34 +934,6 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 		font_clear(editor->window, x, y, 100 - x);
 	}
 #endif
-
-	font_set_bgcolor(editor->bgcolor);
-	font_set_fgcolor(COLOR_TEXT_FG);
-	for (i = from; i <= to; i++) {
-		if (i < editor->top_row)
-			continue;
-		if (i > editor->bottom_row)
-			continue;
-
-		x = 100;
-		y = (i - editor->top_row) * font_height();
-
-		if (y >= WIDGET_HEIGHT(editor))
-			continue;
-
-		if (i < rows) {
-			len = buffer_u8str_at(editor->buffer, i, 0, -1, dst,
-			    sizeof(dst));
-
-			x += font_draw(editor->window, x, y, dst, len);
-			if (WIDGET_WIDTH(editor)-x > 0)
-				font_clear(editor->window, x, y,
-				    WIDGET_WIDTH(editor) - x);
-		}
-		if (WIDGET_WIDTH(editor)-x > 0)
-			font_clear(editor->window, x, y,
-			    WIDGET_WIDTH(editor) - x);
-	}
 
 	if (editor->ocursor)
 		editor_draw_cursor(editor, editor->ocursor, 0);

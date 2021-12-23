@@ -54,7 +54,9 @@ static void	 editor_page_up(struct editor *);
 static void	 editor_page_down(struct editor *);
 static int	 editor_row_is_visible(struct editor *, int);
 static int	 editor_offset_from_col(struct editor *, int, int);
+#if 0
 static int	 editor_col_from_offset(struct editor *, int, int);
+#endif
 static void	 editor_hscroll(struct editor *, int);
 static void	 draw_update(int, int, int, int, BufferUpdate, void *udata);
 
@@ -183,6 +185,7 @@ editor_focus(int focused, void *udata)
 	editor_draw_cursor(editor, editor->cursor, 0);
 }
 
+#if 0
 /*
  * Returns cursor column position from pixel x-offset.
  */
@@ -205,6 +208,7 @@ editor_col_from_offset(struct editor *editor, int row, int offset)
 	}
 	return i;
 }
+#endif
 
 /*
  * Returns pixel x-offset for cursor position.

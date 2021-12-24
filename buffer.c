@@ -319,13 +319,31 @@ buffer_update_cursor(
 	int row_add,
 	int col_add)
 {
-	int old_row, old_col;
+	int old_row, old_col, tmp;
 
 	old_row = cursor->row;
 	old_col = cursor->col;
 
 	cursor->row += row_add;
 	cursor->col += col_add;
+	if (cursor->col < 0) {
+		if (cursor->row == 0) {
+			cursor->col = 0;
+		} else {
+			cursor->row--;
+			tmp = cursor->col;
+			cursor->col = INT_MAX;
+			buffer_restrain_cursor(buffer, cursor);
+			cursor->col = buffer->rows[cursor->row].n_cols +
+			    (tmp+1);
+		}
+	} else if (cursor->row < buffer->n_rows &&
+		   cursor->col > buffer->rows[cursor->row].n_cols &&
+		   row_add == 0) {
+		cursor->col = -1 + (cursor->col -
+		    buffer->rows[cursor->row].n_cols);
+		cursor->row++;
+	}
 
 	buffer_restrain_cursor(buffer, cursor);
 	broadcast_update(buffer, old_row, old_col, old_row, old_col,
@@ -409,10 +427,8 @@ buffer_remove_row(struct buffer *buffer, int row)
 	size_t len;
 	int from, to;
 
-	if (buffer->n_rows == 0)
+	if (buffer->n_rows == 0 || row < 0)
 		return;
-
-	assert(row < buffer->n_rows);
 
 	if (buffer->rows[row].cols != NULL)
 		free(buffer->rows[row].cols);
@@ -457,15 +473,16 @@ buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
 
 	if (cursor->col == buffer->rows[cursor->row].n_cols) {
 		/*
-		 * Join head of this line to the line below this.
+		 * Join head of the line below.
 		 */
-		if (cursor->row+1 < buffer->n_rows)
-			for (i = 0; i < buffer->rows[cursor->row].n_cols; i++)
+		if (cursor->row+1 < buffer->n_rows) {
+			for (i = 0; i < buffer->rows[cursor->row+1].n_cols; i++)
 				buffer_insert_char(buffer,
-				    cursor->row+1, INT_MAX,
-				    buffer->rows[cursor->row].cols[i]);
+				    cursor->row, INT_MAX,
+				    buffer->rows[cursor->row+1].cols[i]);
+		}
 
-		buffer_remove_row(buffer, cursor->row);
+		buffer_remove_row(buffer, cursor->row+1);
 		buffer_restrain_cursor(buffer, cursor);
 		return;
 	}
@@ -490,47 +507,9 @@ buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
 void
 buffer_erase(struct buffer *buffer, struct cursor *cursor)
 {
-	int i;
-
-	buffer_restrain_cursor(buffer, cursor);
-
-	if (cursor->col == 0) {
-		if (cursor->row == 0)
-			return;
-
-		/*
-		 * Join tail of this line to the line above this.
-		 */
-		for (i = 0; i < buffer->rows[cursor->row].n_cols; i++)
-			buffer_insert_char(buffer,
-			    cursor->row-1, INT_MAX,
-			    buffer->rows[cursor->row].cols[i]);
-
-		buffer_remove_row(buffer, cursor->row);
-		cursor->row--;
-		cursor->col = buffer->rows[cursor->row].n_cols - i;
-		buffer_restrain_cursor(buffer, cursor);
-		return;
-	}
-
-	if (buffer->rows[cursor->row].n_cols > 0) {
-		buffer->rows[cursor->row].n_cols--;
-		cursor->col--;
-	}
-
-	if (!(buffer->rows[cursor->row].n_cols == 0 ||
-	    buffer->rows[cursor->row].n_cols-1 == cursor->col+1)) {
-		memmove(
-		    &buffer->rows[cursor->row].cols[cursor->col],
-		    &buffer->rows[cursor->row].cols[cursor->col+1],
-		    (buffer->rows[cursor->row].n_cols - cursor->col) *
-		    sizeof(wchar_t));
-	}
-
-	buffer_restrain_cursor(buffer, cursor);
-
-	broadcast_update(cursor->buffer, cursor->row, cursor->col,
-	    cursor->row, cursor->col, BUFFER_UPDATE_LINE);
+	buffer_update_cursor(buffer, cursor, 0, -1);
+	buffer_delete_char(buffer, cursor);
+	return;
 }
 
 /*

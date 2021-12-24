@@ -54,9 +54,7 @@ static void	 editor_page_up(struct editor *);
 static void	 editor_page_down(struct editor *);
 static int	 editor_row_is_visible(struct editor *, int);
 static int	 editor_offset_from_col(struct editor *, int, int);
-#if 0
 static int	 editor_col_from_offset(struct editor *, int, int);
-#endif
 static void	 editor_hscroll(struct editor *, int);
 static void	 draw_update(int, int, int, int, BufferUpdate, void *udata);
 
@@ -185,7 +183,6 @@ editor_focus(int focused, void *udata)
 	editor_draw_cursor(editor, editor->cursor, 0);
 }
 
-#if 0
 /*
  * Returns cursor column position from pixel x-offset.
  */
@@ -193,22 +190,26 @@ static int
 editor_col_from_offset(struct editor *editor, int row, int offset)
 {
 	size_t i;
-	XGlyphInfo extents;
 	size_t cols;
 	wchar_t ch;
-	int x;
+	char s[4 + 1];
+	int x, width;
+	int len;
 
 	font_set(FONT_NORMAL);
 	cols = buffer_cols(editor->buffer, row);
 	x = 0;
-	for (i = 0; i < cols && x < offset; i++) {
+	width = 0;
+	for (i = 0; i < cols && x + width < offset; i++) {
+		x += width;
 		ch = buffer_at(editor->buffer, row, i);
-		font_extents_wc(&ch, 1, &extents);
-		x += extents.xOff;
+		len = wctomb(s, ch);
+		width = font_str_width(x, s, len);
+		if (x + width > offset)
+			break;
 	}
 	return i;
 }
-#endif
 
 /*
  * Returns pixel x-offset for cursor position.
@@ -216,18 +217,24 @@ editor_col_from_offset(struct editor *editor, int row, int offset)
 static int
 editor_offset_from_col(struct editor *editor, int row, int col)
 {
-	static char dst[4096];
-	size_t len, offset;
-
-	if (col > 0)
-		len = buffer_u8str_at(editor->buffer, row, 0, col-1, dst,
-		    sizeof(dst)-1);
-	else
-		len = 0;
+	size_t i;
+	size_t cols;
+	wchar_t ch;
+	char s[4 + 1];
+	int x, width;
+	int len;
 
 	font_set(FONT_NORMAL);
-	offset = font_str_width(0, dst, len);
-	return offset;
+	cols = buffer_cols(editor->buffer, row);
+	x = 0;
+	width = 0;
+	for (i = 0; i < cols && i <= col; i++) {
+		x += width;
+		ch = buffer_at(editor->buffer, row, i);
+		len = wctomb(s, ch);
+		width = font_str_width(x, s, len);
+	}
+	return x;
 }
 
 /*
@@ -449,6 +456,7 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 	editor->submit_udata = udata;
 	editor->bgcolor = bgcolor;
 	editor->max_rows = max_rows;
+	editor->prefer_offset = -1;
 
 	buffer_add_listener(cursor->buffer, draw_update, editor);
 
@@ -634,6 +642,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 	int n;
 	int row, col;
 	int diff;
+	int offset;
 
 	sym = XkbKeycodeToKeysym(DPY(vc->dpy), e->keycode, 0,
 	    (e->state & ShiftMask) ? 1 : 0);
@@ -660,6 +669,9 @@ editor_keypress(XKeyEvent *e, void *udata)
 	} else {
 		vc->x_on = 0;
 	}
+
+	if (sym != XK_Up && sym != XK_Down)
+		vc->prefer_offset = -1;
 
 	if (e->state & ControlMask) {
 		switch (sym) {
@@ -776,16 +788,39 @@ editor_keypress(XKeyEvent *e, void *udata)
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, 1);
 		break;
 	case XK_Up:
+		row = vc->cursor->row;
+		if (vc->prefer_offset == -1)
+			vc->prefer_offset = editor_offset_from_col(vc, row,
+			    vc->cursor->col);
+		offset = vc->prefer_offset;
 		if (e->state & ShiftMask)
-			buffer_update_cursor(vc->buffer, vc->cursor, -8, 0);
+			row -= 8;
 		else
-			buffer_update_cursor(vc->buffer, vc->cursor, -1, 0);
+			row -= 1;
+		if (row < 0)
+			row = 0;
+		col = editor_col_from_offset(vc, row, offset);
+		offset = editor_offset_from_col(vc, row, col);
+		buffer_set_cursor(vc->buffer, vc->cursor, row, col);
 		break;
 	case XK_Down:
+		row = vc->cursor->row;
+		if (vc->prefer_offset == -1)
+			vc->prefer_offset = editor_offset_from_col(vc, row,
+			    vc->cursor->col);
+		offset = vc->prefer_offset;
 		if (e->state & ShiftMask)
-			buffer_update_cursor(vc->buffer, vc->cursor, 8, 0);
+			row += 8;
 		else
-			buffer_update_cursor(vc->buffer, vc->cursor, 1, 0);
+			row += 1;
+		if (row >= buffer_rows(vc->buffer)) {
+			row = buffer_rows(vc->buffer) - 1;
+			if (row < 0)
+				row = 0;
+		}
+		col = editor_col_from_offset(vc, row, offset);
+		offset = editor_offset_from_col(vc, row, col);
+		buffer_set_cursor(vc->buffer, vc->cursor, row, col);
 		break;
 	case XK_Page_Up:
 		editor_page_up(vc);

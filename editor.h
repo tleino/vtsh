@@ -55,6 +55,7 @@ struct editor {
 	size_t			 begin_offset;
 	int			 largest_height;
 	int			 x_on;
+	int			 prefer_offset;
 
 	/* TODO: Could combine these prompt things to their own struct */
 	struct buffer		*prompt_buffer;

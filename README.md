@@ -205,6 +205,15 @@ has a two-level focus system:
 Toggling between the level is possible using *Alt+Enter*, or
 alternatively *Esc*.
 
+## Using with mouse
+
+* **Button 1** Select text (not yet implemented - only moves cursor at
+  the moment)
+* **Button 2** Paste text (not yet implemented)
+* **Button 3** Execute text (executes whole line, later could execute word
+  or whole line and open context sensitive menu for it)
+* **Scroll wheel** Scroll
+
 ## Default key bindings
 
 ### Buffers

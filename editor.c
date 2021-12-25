@@ -535,13 +535,17 @@ editor_find_cursor_pos(struct editor *editor, int ex, int ey, int *row,
 	*row = ey / font_height();
 	*row += editor->top_row;
 
+#ifdef WANT_LINE_NUMBERS
 	x = 100;
+#else
+	x = 0;
+#endif
 	*col = -1;
 	do {
 		ch = buffer_at(editor->buffer, *row, ++(*col));
 		if (ch == '\0')
 			ch = ' ';
-		x += font_str_width_wc(x-100, &ch, 1);
+		x += font_str_width_wc(x, &ch, 1);
 	} while (x < ex);
 }
 
@@ -622,6 +626,8 @@ editor_mousepress(XButtonEvent *e, void *udata)
 {
 	struct editor *editor = udata;
 	int row, col;
+	static char dst[4096];
+	size_t len;
 
 	if (e->type == ButtonRelease)
 		return 0;
@@ -632,9 +638,16 @@ editor_mousepress(XButtonEvent *e, void *udata)
 	case 1:
 		editor_draw_cursor(editor, editor->cursor, 1);
 		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
-		editor->cursor->row = row;
-		editor->cursor->col = col;
+		buffer_set_cursor(editor->buffer, editor->cursor, row, col);
 		editor_draw_cursor(editor, editor->cursor, 0);
+		return 1;
+	case 3:
+		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
+		len = buffer_u8str_at(editor->buffer, row, 0, -1, dst,
+		    sizeof(dst)-1);
+		dst[len] = '\0';
+		if (editor->exec)
+			editor->exec(dst, editor->exec_udata);
 		return 1;
 	case 4:
 		editor_page_up(editor);

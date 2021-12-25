@@ -57,6 +57,7 @@ static int	pty_find_slave(struct pty *, struct pty *);
 static void	pty_remove_slave(struct pty *, struct pty *);
 
 static void	pty_file_updated(int, int, int, int, BufferUpdate, void *);
+static void	pty_exec_handler(const char *, void *);
 
 struct pty *
 pty_create(struct pty *master, const char *name, struct widget *parent)
@@ -261,6 +262,16 @@ pty_save(struct pty *pty)
 		statbar_update_status(pty->statbar, STATBAR_STATE_FILE_SAVED,
 		    0, 0, buffer_rows(pty->ts_buffer));
 	pty->file_unsaved = 0;
+}
+
+static void
+pty_exec_handler(const char *s, void *udata)
+{
+	struct pty *pty = udata;
+
+	buffer_clear_row(pty->cmd_buffer, 0);
+	buffer_insert(pty->cmd_cursor, s, strlen(s));
+	pty_submit_command(s, pty);
 }
 
 static void
@@ -502,6 +513,9 @@ pty_create_ts(struct pty *pty)
 	    pty_submit_stdin, pty, COLOR_TEXT_BG, -1, 0, "ts_editor",
 	    pty->widget)) == NULL)
 		return -1;
+
+	pty->ts_editor->exec = pty_exec_handler;
+	pty->ts_editor->exec_udata = pty;
 
 	WIDGET(pty->ts_editor)->level = 1;
 	return 0;

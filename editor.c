@@ -76,22 +76,40 @@ static int
 editor_scroll_into_view(struct editor *editor, size_t row, size_t col)
 {
 	size_t d;
+	int ret, offset, diff, lbound;
 
+	ret = 0;
 	if (row > editor->bottom_row) {
 		d = row - editor->bottom_row;
 		editor->top_row += d;
 		editor->bottom_row += d;
 		editor_scroll_down(editor, d);
-		return 1;
+		ret = 1;
 	} else if (row < editor->top_row) {
 		d = editor->top_row - row;
 		editor->top_row -= d;
 		editor->bottom_row -= d;
 		editor_scroll_up(editor, d);
-		return 1;
+		ret = 1;
 	}
 
-	return 0;
+	do {
+		offset = editor_offset_from_col(editor, row, col);
+		diff = offset - (int) editor->begin_offset;
+#ifdef WANT_LINE_NUMBERS
+		lbound = 100;
+#else
+		lbound = 0;
+#endif
+		if (diff >= WIDGET_WIDTH(editor))
+			editor_hscroll(editor, 1);
+		else if (diff <= lbound && editor->begin_offset > 0)
+			editor_hscroll(editor, -1);
+		else
+			break;
+	} while (1);
+
+	return ret;
 }
 
 void
@@ -198,7 +216,11 @@ editor_col_from_offset(struct editor *editor, int row, int offset)
 
 	font_set(FONT_NORMAL);
 	cols = buffer_cols(editor->buffer, row);
+#ifdef WANT_LINE_NUMBERS
+	x = 100;
+#else
 	x = 0;
+#endif
 	width = 0;
 	for (i = 0; i < cols && x + width < offset; i++) {
 		x += width;
@@ -226,7 +248,11 @@ editor_offset_from_col(struct editor *editor, int row, int col)
 
 	font_set(FONT_NORMAL);
 	cols = buffer_cols(editor->buffer, row);
+#ifdef WANT_LINE_NUMBERS
+	x = 100;
+#else
 	x = 0;
+#endif
 	width = 0;
 	for (i = 0; i < cols && i <= col; i++) {
 		x += width;
@@ -238,34 +264,22 @@ editor_offset_from_col(struct editor *editor, int row, int col)
 }
 
 /*
- * Scroll view horizontally when needed.
+ * Scroll view horizontally.
+ * TODO: Optimize with XCopyArea instead of redrawing whole line.
  */
 static void
 editor_hscroll(struct editor *editor, int dir)
 {
-	int x, boundary, add;
-
-	x = editor_offset_from_col(editor, editor->cursor->row,
-	    editor->cursor->col);
-	boundary = WIDGET_WIDTH(editor) - WIDGET_WIDTH(editor) / 3;
-	add = WIDGET_WIDTH(editor) / 3;
-	if (dir == 1 && x - editor->begin_offset < boundary)
-		return;
-	if (dir == -1 && x - editor->begin_offset > (boundary - add))
-		return;
-
 	switch (dir) {
 	case 1:
-		editor->begin_offset += add;
+		editor->begin_offset += WIDGET_WIDTH(editor) / 2;
 		break;
 	case -1:
-		if (editor->begin_offset > add)
-			editor->begin_offset -= add;
-		else
-			editor->begin_offset = 0;
+		editor->begin_offset -= WIDGET_WIDTH(editor) / 2;
 		break;
 	}
-
+	if (editor->begin_offset < 0)
+		editor->begin_offset = 0;
 	draw_update(editor->top_row, 0, editor->bottom_row, 0,
 	    BUFFER_UPDATE_LINE, editor);
 }
@@ -699,10 +713,14 @@ editor_keypress(XKeyEvent *e, void *udata)
 		case XK_a:
 			buffer_update_cursor(vc->buffer, vc->cursor, 0,
 			    -vc->cursor->col);
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			return 1;
 		case XK_e:
 			buffer_update_cursor(vc->buffer, vc->cursor, 0,
 			    buffer_cols(vc->buffer, vc->cursor->row) -
+			    vc->cursor->col);
+			editor_scroll_into_view(vc, vc->cursor->row,
 			    vc->cursor->col);
 			return 1;
 		case XK_k:
@@ -710,21 +728,33 @@ editor_keypress(XKeyEvent *e, void *udata)
 				buffer_remove_row(vc->buffer, vc->cursor->row);
 			else
 				buffer_erase_eol(vc->buffer, vc->cursor);
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			return 1;
 		case XK_b:
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, -1);
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			return 1;
 		case XK_f:
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, 1);
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			return 1;
 		case XK_p:
 			buffer_update_cursor(vc->buffer, vc->cursor, -1, 0);
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			return 1;
 		case XK_n:
 			buffer_update_cursor(vc->buffer, vc->cursor, 1, 0);
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			return 1;
 		case XK_d:
 			buffer_delete_char(vc->buffer, vc->cursor);
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			return 1;
 		case XK_o:
 			row = vc->cursor->row;
@@ -732,6 +762,8 @@ editor_keypress(XKeyEvent *e, void *udata)
 			buffer_insert(vc->cursor, "\n", 1);
 			vc->cursor->row = row;
 			vc->cursor->col = col;
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			editor_draw_cursor(vc, vc->cursor, 0);
 			return 1;
 		case XK_l:
@@ -746,6 +778,8 @@ editor_keypress(XKeyEvent *e, void *udata)
 				editor_scroll_up(vc, -diff);
 			else
 				editor_scroll_down(vc, diff);
+			editor_scroll_into_view(vc, vc->cursor->row,
+			    vc->cursor->col);
 			return 1;
 		}
 	}
@@ -772,16 +806,17 @@ editor_keypress(XKeyEvent *e, void *udata)
 			    0), vc->submit_udata);
 		else
 			buffer_insert(vc->cursor, "\n", 1);
+		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		return 1;
 	case XK_Left:
-		editor_hscroll(vc, -1);
+		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		if (e->state & ShiftMask)
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, -8);
 		else
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, -1);
 		break;
 	case XK_Right:
-		editor_hscroll(vc, 1);
+		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		if (e->state & ShiftMask)
 			buffer_update_cursor(vc->buffer, vc->cursor, 0, 8);
 		else
@@ -824,15 +859,18 @@ editor_keypress(XKeyEvent *e, void *udata)
 		break;
 	case XK_Page_Up:
 		editor_page_up(vc);
+		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		return 1;
 	case XK_Page_Down:
 		editor_page_down(vc);
+		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		return 1;
 	case XK_BackSpace:
-		editor_hscroll(vc, -1);
 		buffer_erase(vc->buffer, vc->cursor);
+		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		return 1;
 	case XK_Delete:
+		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		return 1;
 	}
 
@@ -850,8 +888,8 @@ editor_keypress(XKeyEvent *e, void *udata)
 		/* TODO: Handle this error case */
 		n = 0;
 	} else {
-		editor_hscroll(vc, 1);
 		buffer_insert(vc->cursor, ch, n);
+		editor_scroll_into_view(vc, vc->cursor->row, vc->cursor->col);
 		return 1;
 	}
 

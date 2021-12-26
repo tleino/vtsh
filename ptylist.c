@@ -181,6 +181,9 @@ ptylist_ptyaction(struct pty *pty, PtyAction ptyaction, const char *s,
 	case PtyActionClose:
 		ptylist_close_pty(ptylist, pty);
 		break;
+	case PtyActionToggleHide:
+		pty_toggle_hide_output(pty);
+		break;
 	}
 }
 

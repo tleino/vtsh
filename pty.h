@@ -31,7 +31,8 @@ struct pty;
 
 typedef enum pty_action {
 	PtyActionOpen,
-	PtyActionClose
+	PtyActionClose,
+	PtyActionToggleHide
 } PtyAction;
 
 typedef void (*PtyActionCallback)(struct pty *, PtyAction, const char *,
@@ -74,6 +75,7 @@ struct pty {
 	void *ptyaction_udata;
 
 	struct button *close_button;
+	struct button *hide_button;
 };
 
 struct pty	*pty_create(struct pty *, const char *, struct widget *);

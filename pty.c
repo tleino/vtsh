@@ -63,6 +63,7 @@ static void	pty_exec_handler(const char *, void *);
 static void	pty_action(struct pty *, PtyAction, const char *);
 
 static void	pty_close_button(struct button *, void *);
+static void	pty_hide_button(struct button *, void *);
 
 struct pty *
 pty_create(struct pty *master, const char *name, struct widget *parent)
@@ -104,8 +105,10 @@ pty_create(struct pty *master, const char *name, struct widget *parent)
 	    == NULL)
 		goto fail;
 
-	pty->close_button = button_create("X", pty_close_button, pty,
-	    "delete-button", WIDGET(pty->hbox));
+	pty->hide_button = button_create("[H]", pty_hide_button, pty,
+	    "hide_button", WIDGET(pty->hbox));
+	pty->close_button = button_create("[X]", pty_close_button, pty,
+	    "close_button", WIDGET(pty->hbox));
 
 	statbar_update_status(pty->statbar, STATBAR_STATE_NOT_STARTED, 0, 0, 0);
 	return pty;
@@ -129,6 +132,14 @@ pty_close_button(struct button *button, void *udata)
 	struct pty *pty = udata;
 
 	pty_action(pty, PtyActionClose, "");
+}
+
+static void
+pty_hide_button(struct button *button, void *udata)
+{
+	struct pty *pty = udata;
+
+	pty_action(pty, PtyActionToggleHide, "");
 }
 
 static void
@@ -668,6 +679,8 @@ pty_free(struct pty *pty)
 		label_free(pty->cwd);
 	if (pty->close_button != NULL)
 		button_free(pty->close_button);
+	if (pty->hide_button != NULL)
+		button_free(pty->hide_button);
 	if (pty->hbox != NULL)
 		layout_free(pty->hbox);
 

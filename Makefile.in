@@ -13,6 +13,7 @@ INSTALL ?= install
 INSTALLFLAGS ?=
 
 SRCS=\
+	button.c \
 	label.c \
 	layout.c \
 	statbar.c \

@@ -51,8 +51,10 @@ static int		 ptylist_find_pty(struct ptylist *, struct widget *);
 static struct pty	*ptylist_find_focus(struct ptylist *);
 static void		 ptylist_destroy(void *);
 static void		 ptylist_create_new_window(void);
+static void		 ptylist_close_pty(struct ptylist *, struct pty *);
 
-static void		 ptylist_ptyaction(PtyAction, const char *, void *);
+static void		 ptylist_ptyaction(struct pty *, PtyAction,
+			    const char *, void *);
 
 static int		 n_ptylist;
 static int		 ptylist_i = 1;
@@ -166,13 +168,70 @@ ptylist_free(struct ptylist *ptylist)
 }
 
 static void
-ptylist_ptyaction(PtyAction ptyaction, const char *s, void *udata)
+ptylist_ptyaction(struct pty *pty, PtyAction ptyaction, const char *s,
+    void *udata)
 {
 	struct ptylist *ptylist = udata;
-	struct pty *pty;
 
-	pty = ptylist_add_pty(ptylist, NULL);
-	pty_run_command(pty, s);
+	switch (ptyaction) {
+	case PtyActionOpen:
+		pty = ptylist_add_pty(ptylist, NULL);
+		pty_run_command(pty, s);
+		break;
+	case PtyActionClose:
+		ptylist_close_pty(ptylist, pty);
+		break;
+	}
+}
+
+static void
+ptylist_close_pty(struct ptylist *ptylist, struct pty *pty)
+{
+	struct widget *root, *ptywidget;
+	int i;
+
+	root = widget_find_root(WIDGET(ptylist));
+
+	/*
+	 * TODO: Remove this hack. Focusing cmd_editor here is needed
+	 * only because the rest of this function knows only the keyboard
+	 * focus and keyboard focus can be only on an editor, while in
+	 * fact what we care here is the pty itself. We get pty pointer
+	 * when we're handling mouse presses e.g. to pty's buttons.
+	 */
+	if (pty != NULL) {
+		widget_focus(WIDGET(pty->cmd_editor));
+	}
+
+	ptywidget = root->focus;
+
+	/*
+	 * Ensure focus can land on a new pty, refuse otherwise.
+	 */
+	widget_focus_prev(ptywidget, root->level);
+	if (root->focus == ptywidget) {
+		widget_focus_next(ptywidget, root->level);
+		if (root->focus == ptywidget) {
+			widget_focus(ptywidget);
+			return;
+		}
+	}
+
+	/*
+	 * Remove it.
+	 */
+
+	i = ptylist_find_pty(ptylist, ptywidget);
+	if (i >= 0) {
+		pty_free(ptylist->ptys[i]);
+		if (i+1 < ptylist->n_ptys)
+			memmove(&ptylist->ptys[i],
+			    &ptylist->ptys[i+1],
+			    (ptylist->n_ptys-i-1) *
+			    sizeof(struct pty *));
+		ptylist->n_ptys--;
+	} else
+		assert(0);
 }
 
 static struct pty *
@@ -280,7 +339,7 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 {
 	struct ptylist *ptylist = udata;
 	KeySym sym;
-	struct widget *root, *ptywidget;
+	struct widget *root;
 	int i;
 	struct pty *pty;
 	extern struct dpy *dpy;
@@ -338,35 +397,7 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 			widget_focus_next(root->focus, root->level);
 		return 1;
 	case XK_BackSpace:
-		root = widget_find_root(WIDGET(ptylist));
-		ptywidget = root->focus;
-
-		/*
-		 * Ensure focus can land on a new pty, refuse otherwise.
-		 */
-		widget_focus_prev(ptywidget, root->level);
-		if (root->focus == ptywidget) {
-			widget_focus_next(ptywidget, root->level);
-			if (root->focus == ptywidget) {
-				widget_focus(ptywidget);
-				return 1;
-			}
-		}
-
-		/*
-		 * Remove it.
-		 */
-		i = ptylist_find_pty(ptylist, ptywidget);
-		if (i >= 0) {
-			pty_free(ptylist->ptys[i]);
-			if (i+1 < ptylist->n_ptys)
-				memmove(&ptylist->ptys[i],
-				    &ptylist->ptys[i+1],
-				    (ptylist->n_ptys-i-1) *
-				    sizeof(struct pty *));
-			ptylist->n_ptys--;
-		} else
-			assert(0);
+		ptylist_close_pty(ptylist, NULL);
 		return 1;
 	}
 

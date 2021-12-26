@@ -26,12 +26,16 @@
 struct dpy;
 struct editor;
 struct widget;
+struct button;
+struct pty;
 
 typedef enum pty_action {
-	PtyActionOpen
+	PtyActionOpen,
+	PtyActionClose
 } PtyAction;
 
-typedef void (*PtyActionCallback)(PtyAction, const char *, void *);
+typedef void (*PtyActionCallback)(struct pty *, PtyAction, const char *,
+    void *);
 
 struct pty {
 	struct widget *parent;
@@ -67,7 +71,9 @@ struct pty {
 	int max_slaves;
 
 	PtyActionCallback ptyaction;
-	void *ptyaction_udata;	
+	void *ptyaction_udata;
+
+	struct button *close_button;
 };
 
 struct pty	*pty_create(struct pty *, const char *, struct widget *);

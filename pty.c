@@ -25,6 +25,7 @@
 #include "widget.h"
 #include "label.h"
 #include "uflags.h"
+#include "button.h"
 
 #ifdef HAVE_PTY_H
 #include <pty.h>
@@ -60,6 +61,8 @@ static void	pty_file_updated(int, int, int, int, BufferUpdate, void *);
 static void	pty_exec_handler(const char *, void *);
 
 static void	pty_action(struct pty *, PtyAction, const char *);
+
+static void	pty_close_button(struct button *, void *);
 
 struct pty *
 pty_create(struct pty *master, const char *name, struct widget *parent)
@@ -101,6 +104,9 @@ pty_create(struct pty *master, const char *name, struct widget *parent)
 	    == NULL)
 		goto fail;
 
+	pty->close_button = button_create("X", pty_close_button, pty,
+	    "delete-button", WIDGET(pty->hbox));
+
 	statbar_update_status(pty->statbar, STATBAR_STATE_NOT_STARTED, 0, 0, 0);
 	return pty;
 
@@ -118,12 +124,20 @@ pty_set_action_callback(struct pty *pty, PtyActionCallback ptyaction,
 }
 
 static void
+pty_close_button(struct button *button, void *udata)
+{
+	struct pty *pty = udata;
+
+	pty_action(pty, PtyActionClose, "");
+}
+
+static void
 pty_action(struct pty *pty, PtyAction action, const char *s)
 {
 	if (pty->ptyaction == NULL)
 		return;
 
-	pty->ptyaction(action, s, pty->ptyaction_udata);
+	pty->ptyaction(pty, action, s, pty->ptyaction_udata);
 }
 
 void
@@ -652,6 +666,8 @@ pty_free(struct pty *pty)
 		statbar_free(pty->statbar);
 	if (pty->cwd != NULL)
 		label_free(pty->cwd);
+	if (pty->close_button != NULL)
+		button_free(pty->close_button);
 	if (pty->hbox != NULL)
 		layout_free(pty->hbox);
 

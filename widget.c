@@ -219,10 +219,17 @@ widget_root_keypress(XKeyEvent *xkey, void *udata)
 static void
 widget_mousepress(XButtonEvent *xbutton, void *udata)
 {
-	struct widget *widget = udata;
+	struct widget *orig, *widget = udata;
+	int ret;
 
-	if (widget->mousepress)
-		widget->mousepress(xbutton, widget->mousepress_udata);
+	orig = widget;
+	while (widget != NULL) {
+		if (widget->mousepress != NULL &&
+		    (ret = widget->mousepress(orig, xbutton,
+		    widget->mousepress_udata)) == 1)
+			break;
+		widget = widget->parent;
+	}
 }
 
 static void

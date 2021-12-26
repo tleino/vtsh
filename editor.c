@@ -44,7 +44,7 @@ static void	 editor_scroll_up(struct editor *, size_t);
 static void	 editor_expose(int, int, int, int, void *);
 static void	 editor_focus(int focused, void *);
 static int	 editor_keypress(XKeyEvent *, void *);
-static int	 editor_mousepress(XButtonEvent *, void *);
+static int	 editor_mousepress(struct widget *, XButtonEvent *, void *);
 static int	 editor_motion(XMotionEvent *, void *);
 static int	 editor_draw_cursor(struct editor *, struct cursor *, int);
 static void	 editor_update_geometry(void *);
@@ -622,7 +622,7 @@ editor_motion(XMotionEvent *e, void *udata)
 }
 
 static int
-editor_mousepress(XButtonEvent *e, void *udata)
+editor_mousepress(struct widget *widget, XButtonEvent *e, void *udata)
 {
 	struct editor *editor = udata;
 	int row, col;

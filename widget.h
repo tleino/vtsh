@@ -20,9 +20,11 @@
 
 #include <X11/Xlib.h>
 
+struct widget;
+
 typedef void (*WidgetDraw)(int, int, int, int, void *);
 typedef int (*WidgetKeyPress)(XKeyEvent *, void *);
-typedef int (*WidgetMousePress)(XButtonEvent *, void *);
+typedef int (*WidgetMousePress)(struct widget *, XButtonEvent *, void *);
 typedef int (*WidgetMotion)(XMotionEvent *, void *);
 typedef void (*WidgetFocusChange)(int, void *);
 typedef void (*WidgetUpdatePrefer)(void *);

@@ -27,6 +27,12 @@ struct dpy;
 struct editor;
 struct widget;
 
+typedef enum pty_action {
+	PtyActionOpen
+} PtyAction;
+
+typedef void (*PtyActionCallback)(PtyAction, const char *, void *);
+
 struct pty {
 	struct widget *parent;
 	struct widget *widget;
@@ -59,9 +65,15 @@ struct pty {
 	struct pty *active_slave;
 	int n_slaves;
 	int max_slaves;
+
+	PtyActionCallback ptyaction;
+	void *ptyaction_udata;	
 };
 
 struct pty	*pty_create(struct pty *, const char *, struct widget *);
+void		 pty_run_command(struct pty *, const char *);
+void		 pty_set_action_callback(struct pty *, PtyActionCallback,
+		    void *);
 void		 pty_free(struct pty *);
 void		 pty_toggle_hide_output(struct pty *);
 void		 pty_hide_output(struct pty *);

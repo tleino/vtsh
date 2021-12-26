@@ -59,6 +59,8 @@ static void	pty_remove_slave(struct pty *, struct pty *);
 static void	pty_file_updated(int, int, int, int, BufferUpdate, void *);
 static void	pty_exec_handler(const char *, void *);
 
+static void	pty_action(struct pty *, PtyAction, const char *);
+
 struct pty *
 pty_create(struct pty *master, const char *name, struct widget *parent)
 {
@@ -105,6 +107,23 @@ pty_create(struct pty *master, const char *name, struct widget *parent)
 fail:
 	pty_free(pty);
 	return NULL;
+}
+
+void
+pty_set_action_callback(struct pty *pty, PtyActionCallback ptyaction,
+    void *udata)
+{
+	pty->ptyaction = ptyaction;
+	pty->ptyaction_udata = udata;
+}
+
+static void
+pty_action(struct pty *pty, PtyAction action, const char *s)
+{
+	if (pty->ptyaction == NULL)
+		return;
+
+	pty->ptyaction(action, s, pty->ptyaction_udata);
 }
 
 void
@@ -269,6 +288,12 @@ pty_exec_handler(const char *s, void *udata)
 {
 	struct pty *pty = udata;
 
+	pty_action(pty, PtyActionOpen, s);
+}
+
+void
+pty_run_command(struct pty *pty, const char *s)
+{
 	buffer_clear_row(pty->cmd_buffer, 0);
 	buffer_insert(pty->cmd_cursor, s, strlen(s));
 	pty_submit_command(s, pty);

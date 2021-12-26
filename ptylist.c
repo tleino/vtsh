@@ -52,6 +52,8 @@ static struct pty	*ptylist_find_focus(struct ptylist *);
 static void		 ptylist_destroy(void *);
 static void		 ptylist_create_new_window(void);
 
+static void		 ptylist_ptyaction(PtyAction, const char *, void *);
+
 static int		 n_ptylist;
 static int		 ptylist_i = 1;
 struct ptylist		*ptylist_root;
@@ -163,6 +165,16 @@ ptylist_free(struct ptylist *ptylist)
 		running = 0;
 }
 
+static void
+ptylist_ptyaction(PtyAction ptyaction, const char *s, void *udata)
+{
+	struct ptylist *ptylist = udata;
+	struct pty *pty;
+
+	pty = ptylist_add_pty(ptylist, NULL);
+	pty_run_command(pty, s);
+}
+
 static struct pty *
 ptylist_add_pty(struct ptylist *ptylist, struct pty *master)
 {
@@ -189,6 +201,7 @@ ptylist_add_pty(struct ptylist *ptylist, struct pty *master)
 		warn("creating pty");
 		return NULL;
 	}
+	pty_set_action_callback(pty, ptylist_ptyaction, ptylist);
 	ptylist->ptys[i] = pty;
 	ptylist->n_ptys++;
 

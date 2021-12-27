@@ -67,6 +67,7 @@ static struct widget	*_widget_create(int, unsigned long, const char *,
 static void		 widget_notify_focus_change(struct widget *, int);
 
 static int		 widget_enable_protocols(struct widget *);
+static void		 widget_enable_hints(struct widget *);
 static void		 widget_takefocus(Time, void *);
 
 static void		 widget_root_idle(void *);
@@ -720,8 +721,10 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 
 	widget_ensure_focus(widget);
 
-	if (widget->parent == NULL)
+	if (widget->parent == NULL) {
 		widget_enable_protocols(widget);
+		widget_enable_hints(widget);
+	}
 
 	return widget;
 }
@@ -888,6 +891,19 @@ widget_remove_child(struct widget *widget, struct widget *child)
 	}
 	widget->nchildren--;
 	return 0;
+}
+
+static void
+widget_enable_hints(struct widget *widget)
+{
+	XWMHints hints = { 0 };
+	extern struct dpy *dpy;
+
+	hints.flags |= InputHint;
+	hints.flags |= StateHint;
+	hints.input = True;
+	hints.initial_state = NormalState;
+	XSetWMHints(DPY(dpy), widget->window, &hints);
 }
 
 static int

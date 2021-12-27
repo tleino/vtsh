@@ -217,7 +217,7 @@ _font_draw(Window window, int x, int y, const char *text, size_t len)
 }
 
 int
-font_draw(Window window, int x, int y, const char *text, size_t len)
+font_draw(Window window, int x, int sx, int y, const char *text, size_t len)
 {
 	size_t i, j;
 	int x_out, tabstop, tabwidth, remaining;
@@ -227,32 +227,27 @@ font_draw(Window window, int x, int y, const char *text, size_t len)
 	for (i = 0; i < len; i++) {
 		if (text[i] == '\t') {
 			if (j!=i)
-				x_out += _font_draw(window, x+x_out, y,
+				x_out += _font_draw(window, sx+x_out, y,
 				    &text[j], i-j);
 
 			j=i+1;
 
-			/*
-			 * TODO: Remove '-100' which is a hack for editor.c
-			 *       that can be removed when the linenumbers
-			 *       are moved to their own window or similar
-			 *       system.
-			 */
 			tabwidth = space_width * TABWIDTH;
-			tabstop = ((x+x_out-100) / tabwidth);
-			remaining = tabwidth - ((x+x_out-100) -
+			tabstop = ((x+x_out) / tabwidth);
+			remaining = tabwidth - ((x+x_out) -
 			    (tabstop * tabwidth));
-			font_clear(window, x+x_out, y, remaining);
+			font_clear(window, sx+x_out, y, remaining);
 			x_out += remaining;
 		}
 	}
 	if (j < len)
-		x_out += _font_draw(window, x+x_out, y, &text[j], i-j);
+		x_out += _font_draw(window, sx+x_out, y, &text[j], i-j);
 	return x_out;
 }
 
 int
-font_draw_wc(Window window, int x, int y, const wchar_t *text, size_t len)
+font_draw_wc(Window window, int x, int sx, int y, const wchar_t *text,
+    size_t len)
 {
 	char s[4096];
 	wchar_t wcs[4096];
@@ -262,7 +257,7 @@ font_draw_wc(Window window, int x, int y, const wchar_t *text, size_t len)
 		wcs[i] = text[i];
 	wcs[len] = 0;
 	if ((n = wcstombs(s, wcs, sizeof(s)) > 0))
-		return font_draw(window, x, y, s, strlen(s));
+		return font_draw(window, x, sx, y, s, strlen(s));
 
 	return 0;
 }

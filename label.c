@@ -100,6 +100,7 @@ label_draw(int x, int y, int width, int height, void *udata)
 
 	font_set_fgcolor(COLOR_FLAGS);
 	font_set_bgcolor(COLOR_TITLE_BG_NORMAL);
-	x = font_draw(WINDOW(label), 0, 0, label->text, strlen(label->text));
+	x = font_draw(WINDOW(label), 0, 0, 0, label->text,
+	    strlen(label->text));
 	font_clear(WINDOW(label), x, 0, WIDGET_WIDTH(label) - x);
 }

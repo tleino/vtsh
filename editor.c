@@ -76,7 +76,7 @@ static int
 editor_scroll_into_view(struct editor *editor, size_t row, size_t col)
 {
 	size_t d;
-	int ret, offset, diff, lbound;
+	int ret, offset, diff, rbound;
 
 	ret = 0;
 	if (row > editor->bottom_row) {
@@ -96,14 +96,13 @@ editor_scroll_into_view(struct editor *editor, size_t row, size_t col)
 	do {
 		offset = editor_offset_from_col(editor, row, col);
 		diff = offset - (int) editor->begin_offset;
+		rbound = WIDGET_WIDTH(editor);
 #ifdef WANT_LINE_NUMBERS
-		lbound = 100;
-#else
-		lbound = 0;
+		rbound -= 100;
 #endif
-		if (diff >= WIDGET_WIDTH(editor))
+		if (diff >= rbound)
 			editor_hscroll(editor, 1);
-		else if (diff <= lbound && editor->begin_offset > 0)
+		else if (diff <= 0 && editor->begin_offset > 0)
 			editor_hscroll(editor, -1);
 		else
 			break;
@@ -171,16 +170,19 @@ editor_draw_cursor(struct editor *editor, struct cursor *cursor, int clear)
 
 	buffer = cursor->buffer;
 
-	x = 100;
-	x -= editor->begin_offset;
 	y = (cursor->row - editor->top_row) * font_height();
 	ch = buffer_at(buffer, cursor->row, cursor->col);
 	if (ch == '\0')
 		ch = ' ';
 
-	x += font_str_width(x-100, dst, len);
+	x = 0;
+	x += font_str_width(x, dst, len);
 
-	font_draw_wc(editor->window, x, y, &ch, 1);
+#ifdef WANT_LINE_NUMBERS
+	font_draw_wc(editor->window, x, x-editor->begin_offset+100, y, &ch, 1);
+#else
+	font_draw_wc(editor->window, x, x-editor->begin_offset, y, &ch, 1);
+#endif
 	return x;
 }
 
@@ -202,7 +204,8 @@ editor_focus(int focused, void *udata)
 }
 
 /*
- * Returns cursor column position from pixel x-offset.
+ * Returns cursor column position from pixel x-offset with the line number
+ * column substracted.
  */
 static int
 editor_col_from_offset(struct editor *editor, int row, int offset)
@@ -216,12 +219,9 @@ editor_col_from_offset(struct editor *editor, int row, int offset)
 
 	font_set(FONT_NORMAL);
 	cols = buffer_cols(editor->buffer, row);
-#ifdef WANT_LINE_NUMBERS
-	x = 100;
-#else
-	x = 0;
-#endif
+
 	width = 0;
+	x = 0;
 	for (i = 0; i < cols && x + width < offset; i++) {
 		x += width;
 		ch = buffer_at(editor->buffer, row, i);
@@ -248,11 +248,7 @@ editor_offset_from_col(struct editor *editor, int row, int col)
 
 	font_set(FONT_NORMAL);
 	cols = buffer_cols(editor->buffer, row);
-#ifdef WANT_LINE_NUMBERS
-	x = 100;
-#else
 	x = 0;
-#endif
 	width = 0;
 	for (i = 0; i < cols && i <= col; i++) {
 		x += width;
@@ -529,24 +525,9 @@ static void
 editor_find_cursor_pos(struct editor *editor, int ex, int ey, int *row,
     int *col)
 {
-	int x;
-	wchar_t ch;
-
 	*row = ey / font_height();
 	*row += editor->top_row;
-
-#ifdef WANT_LINE_NUMBERS
-	x = 100;
-#else
-	x = 0;
-#endif
-	*col = -1;
-	do {
-		ch = buffer_at(editor->buffer, *row, ++(*col));
-		if (ch == '\0')
-			ch = ' ';
-		x += font_str_width_wc(x, &ch, 1);
-	} while (x < ex);
+	*col = editor_col_from_offset(editor, *row, ex);
 }
 
 static int
@@ -614,6 +595,10 @@ editor_motion(XMotionEvent *e, void *udata)
 	int row, col;
 
 	editor_draw_cursor(editor, editor->cursor, 1);
+#ifdef WANT_LINE_NUMBERS
+	e->x -= 100;
+#endif
+	e->x += editor->begin_offset;
 	editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
 	buffer_set_cursor(editor->buffer, editor->cursor, row, col);
 	editor_scroll_into_view(editor, editor->cursor->row,
@@ -637,11 +622,19 @@ editor_mousepress(struct widget *widget, XButtonEvent *e, void *udata)
 	switch (e->button) {
 	case 1:
 		editor_draw_cursor(editor, editor->cursor, 1);
+#ifdef WANT_LINE_NUMBERS
+		e->x -= 100;
+#endif
+		e->x += editor->begin_offset;
 		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
 		buffer_set_cursor(editor->buffer, editor->cursor, row, col);
 		editor_draw_cursor(editor, editor->cursor, 0);
 		return 1;
 	case 3:
+#ifdef WANT_LINE_NUMBERS
+		e->x -= 100;
+#endif
+		e->x += editor->begin_offset;
 		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
 		len = buffer_u8str_at(editor->buffer, row, 0, -1, dst,
 		    sizeof(dst)-1);
@@ -948,7 +941,7 @@ editor_scroll_up(struct editor *editor, size_t steps)
 static void
 editor_draw(struct editor *editor, size_t from, size_t to)
 {
-	int i, x, y, len;
+	int i, x, sx, y, len, x_add;
 	size_t rows;
 #ifdef WANT_LINE_NUMBERS
 	char lineno[256];
@@ -968,9 +961,14 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 		if (i > editor->bottom_row)
 			continue;
 
-		x = 100;
+#ifdef WANT_LINE_NUMBERS
+		sx = 100;
+#else
+		sx = 0;
+#endif
+		x = 0;
 		y = (i - editor->top_row) * font_height();
-		x -= editor->begin_offset;
+		sx -= editor->begin_offset;
 
 		if (y >= WIDGET_HEIGHT(editor))
 			continue;
@@ -979,14 +977,16 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 			len = buffer_u8str_at(editor->buffer, i, 0, -1, dst,
 			    sizeof(dst));
 
-			x += font_draw(editor->window, x, y, dst, len);
-			if (WIDGET_WIDTH(editor)-x > 0)
-				font_clear(editor->window, x, y,
-				    WIDGET_WIDTH(editor) - x);
+			x_add = font_draw(editor->window, x, sx, y, dst, len);
+			x += x_add;
+			sx += x_add;
+			if (WIDGET_WIDTH(editor)-sx > 0)
+				font_clear(editor->window, sx, y,
+				    WIDGET_WIDTH(editor) - sx);
 		}
-		if (WIDGET_WIDTH(editor)-x > 0)
-			font_clear(editor->window, x, y,
-			    WIDGET_WIDTH(editor) - x);
+		if (WIDGET_WIDTH(editor)-sx > 0)
+			font_clear(editor->window, sx, y,
+			    WIDGET_WIDTH(editor) - sx);
 	}
 
 #ifdef WANT_LINE_NUMBERS
@@ -1017,7 +1017,7 @@ editor_draw(struct editor *editor, size_t from, size_t to)
 			snprintf(lineno, sizeof(lineno), "%d->", i + 1);
 		else
 			snprintf(lineno, sizeof(lineno), "%d", i + 1);
-		x += font_draw(editor->window, x, y, lineno, strlen(lineno));
+		x += font_draw(editor->window, x, x, y, lineno, strlen(lineno));
 		font_clear(editor->window, x, y, 100 - x);
 	}
 #endif

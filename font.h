@@ -25,8 +25,8 @@
 
 struct dpy;
 
-int	 font_draw(Window, int, int, const char *, size_t);
-int	 font_draw_wc(Window, int, int, const wchar_t *, size_t);
+int	 font_draw(Window, int, int, int, const char *, size_t);
+int	 font_draw_wc(Window, int, int, int, const wchar_t *, size_t);
 void	 font_clear(Window, int, int, int);
 void	 font_extents(const char *, size_t, XGlyphInfo *);
 void	 font_extents_wc(const wchar_t *, size_t, XGlyphInfo *);

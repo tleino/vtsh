@@ -471,6 +471,11 @@ buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
 
 	buffer_restrain_cursor(buffer, cursor);
 
+	if (buffer->n_rows == 0)
+		return;
+	if (cursor->row == 0 && buffer->rows[cursor->row].n_cols == 0)
+		return;
+
 	if (cursor->col == buffer->rows[cursor->row].n_cols) {
 		/*
 		 * Join head of the line below.

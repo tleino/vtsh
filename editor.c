@@ -1055,6 +1055,9 @@ editor_draw_line(struct editor *editor, size_t *x, int *sx, size_t row,
 	size_t j, k;
 	int bgcolor, want_bgcolor, step_ctrl, error;
 
+	if (dst == NULL || len == 0)
+		return;
+
 	j = 0;
 	k = 0;
 	bgcolor = editor->bgcolor;
@@ -1067,6 +1070,9 @@ editor_draw_line(struct editor *editor, size_t *x, int *sx, size_t row,
 		 * it is an input validation error.
 		 */
 		assert(error == 0);
+
+		if (j >= len)
+			break;
 
 		if (editor->focused && row == editor->cursor->row &&
 		    j+orig_offset == editor->cursor->offset) {

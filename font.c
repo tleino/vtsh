@@ -151,29 +151,6 @@ font_str_width(int x, const char *text, size_t len)
 	
 }
 
-int
-font_str_width_wc(int x, const wchar_t *text, size_t len)
-{
-	char s[4096];
-	wchar_t wcs[4096];
-	size_t i, n;
-
-	for (i = 0; i < len; i++)
-		wcs[i] = text[i];
-	wcs[len] = 0;
-	if ((n = wcstombs(s, wcs, sizeof(s)) > 0))
-		return font_str_width(x, s, strlen(s));
-	else
-		return 0;
-}
-
-void
-font_extents_wc(const wchar_t *text, size_t len, XGlyphInfo *extents)
-{
-	XftTextExtents32(DPY(dpy), current_font,
-	    (const FcChar32 *) text, len, extents);
-}
-
 void
 font_clear(Window window, int x, int y, int width)
 {
@@ -213,10 +190,6 @@ _font_draw(Window window, int x, int y, const char *text, size_t len)
 	XftDrawStringUtf8(ftdraw, &fgcolor, current_font, x,
 	    y + current_font->ascent, (const FcChar8 *) text, len);
 
-#if 0
-	printf("FONT_DRAW x=%d +%d y=%d (%zu bytes)\n", x, extents.xOff, y, len);
-#endif
-
 	return extents.xOff;
 }
 
@@ -247,23 +220,6 @@ font_draw(Window window, int x, int sx, int y, const char *text, size_t len)
 	if (j < len)
 		x_out += _font_draw(window, sx+x_out, y, &text[j], i-j);
 	return x_out;
-}
-
-int
-font_draw_wc(Window window, int x, int sx, int y, const wchar_t *text,
-    size_t len)
-{
-	char s[4096];
-	wchar_t wcs[4096];
-	size_t i, n;
-
-	for (i = 0; i < len; i++)
-		wcs[i] = text[i];
-	wcs[len] = 0;
-	if ((n = wcstombs(s, wcs, sizeof(s)) > 0))
-		return font_draw(window, x, sx, y, s, strlen(s));
-
-	return 0;
 }
 
 static XftFont *

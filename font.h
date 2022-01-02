@@ -35,5 +35,6 @@ int	 font_width(void);
 void	 font_set_fgcolor(int);
 void	 font_set_bgcolor(int);
 void	 font_close(void);
+void	 font_destroy_ftdraw(void);
 
 #endif

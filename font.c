@@ -245,6 +245,19 @@ font_load(int id)
 	return ftfont[id];
 }
 
+/*
+ * TODO: Actually have separate ftdraw for each widget.
+ * XftDrawChange() is nice, but causes problems.
+ */
+void
+font_destroy_ftdraw()
+{
+	if (ftdraw != NULL) {
+		XftDrawDestroy(ftdraw);
+		ftdraw = NULL;
+	}
+}
+
 void
 font_close()
 {
@@ -257,8 +270,5 @@ font_close()
 		}
 	}
 
-	if (ftdraw != NULL) {
-		XftDrawDestroy(ftdraw);
-		ftdraw = NULL;
-	}
+	font_destroy_ftdraw();
 }

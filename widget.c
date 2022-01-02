@@ -25,6 +25,7 @@
 #include "event.h"
 #include "util.h"
 #include "config.h"
+#include "font.h"
 
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
@@ -984,6 +985,8 @@ widget_free(struct widget *widget)
 
 	if (widget->focus == widget)
 		widget->focus = NULL;
+
+	font_destroy_ftdraw();
 
 	if (widget->window != 0)
 		XDestroyWindow(DPY(dpy), widget->window);

@@ -58,6 +58,7 @@ static void	 editor_page_down(struct editor *);
 static int	 editor_row_is_visible(struct editor *, int);
 static void	 editor_hscroll(struct editor *, int);
 static void	 draw_update(int, int, int, int, BufferUpdate, void *udata);
+static void	 editor_draw_cursor_now(struct editor *, int);
 
 static int
 editor_offset_from_pos(struct editor *editor, int row, int byteoffset,
@@ -797,11 +798,13 @@ editor_keypress(XKeyEvent *e, void *udata)
 			    vc->cursor->offset);
 			return 1;
 		case XK_p:
+			editor_draw_cursor_now(vc, 0);
 			buffer_update_cursor(vc->buffer, vc->cursor, -1, 0);
 			editor_scroll_into_view(vc, vc->cursor->row,
 			    vc->cursor->offset);
 			return 1;
 		case XK_n:
+			editor_draw_cursor_now(vc, 0);
 			buffer_update_cursor(vc->buffer, vc->cursor, 1, 0);
 			editor_scroll_into_view(vc, vc->cursor->row,
 			    vc->cursor->offset);
@@ -840,8 +843,6 @@ editor_keypress(XKeyEvent *e, void *udata)
 	}
 
 	switch (sym) {
-	case XK_Left:
-	case XK_Right:
 	case XK_Up:
 	case XK_Down:
 		if (vc->ocursor) {
@@ -849,6 +850,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 			    vc->cursor->col == vc->ocursor->col)
 				editor_draw_cursor(vc, vc->ocursor);
 		}
+		editor_draw_cursor_now(vc, 0);
 		break;
 	}
 
@@ -955,6 +957,22 @@ editor_keypress(XKeyEvent *e, void *udata)
 	}
 
 	return 0;
+}
+
+static void
+editor_draw_cursor_now(struct editor *editor, int visible)
+{
+	int orig_focused;
+
+	orig_focused = editor->focused;
+
+	if (visible && orig_focused)
+		editor->focused = 1;
+	else
+		editor->focused = 0;
+
+	editor_draw(editor, editor->cursor->row, editor->cursor->row);
+	editor->focused = orig_focused;
 }
 
 static void

@@ -213,6 +213,10 @@ _font_draw(Window window, int x, int y, const char *text, size_t len)
 	XftDrawStringUtf8(ftdraw, &fgcolor, current_font, x,
 	    y + current_font->ascent, (const FcChar8 *) text, len);
 
+#if 0
+	printf("FONT_DRAW x=%d +%d y=%d (%zu bytes)\n", x, extents.xOff, y, len);
+#endif
+
 	return extents.xOff;
 }
 

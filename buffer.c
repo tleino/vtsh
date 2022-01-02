@@ -17,6 +17,7 @@
 
 #include "buffer.h"
 #include "util.h"
+#include "utf8.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -26,9 +27,9 @@
 #include <limits.h>
 
 struct row {
-	wchar_t *cols;
-	size_t n_cols;
-	size_t max_cols;
+	char *bytes;
+	size_t bytes_used;
+	size_t bytes_size;
 	int uflags;
 };
 
@@ -47,17 +48,17 @@ struct buffer {
 	size_t max_listeners;
 };
 
-static void buffer_restrain_cursor(struct buffer *, struct cursor *);
-static int buffer_insert_row(struct buffer *, int);
-static int buffer_insert_char(struct buffer *, int, int, wchar_t);
+static int	 buffer_insert_row(struct buffer *, int);
+static int	 buffer_insert_char(struct buffer *, size_t, size_t *,
+		    const char *, size_t);
+static char	*row_at(struct row *, size_t *, size_t *);
+static void	 buffer_erase_eol_at(struct buffer *, size_t, size_t);
+static void	 broadcast_update(struct buffer *, int, int, int, int,
+		    BufferUpdate);
 
 #if 0
-static void dump_buffer(struct buffer *buffer);
+static void	 dump_buffer(struct buffer *buffer);
 #endif
-
-static void broadcast_update(struct buffer *, int, int, int, int,
-	BufferUpdate);
-
 
 int
 buffer_row_uflags(struct buffer *buffer, int row)
@@ -66,6 +67,84 @@ buffer_row_uflags(struct buffer *buffer, int row)
 		return 0;
 
 	return buffer->rows[row].uflags;
+}
+
+/*
+ * Quick and dirty strcasestr() replacement that works with non-NULL
+ * terminated strings. Returns 1 if found.
+ */
+int
+buffer_match(struct buffer *buffer, size_t row, const char *needle,
+    size_t needle_len, size_t *offset)
+{
+	const char *haystack;
+	size_t haystack_len, len, target_offset, prev, begin, orig_len;
+	const char *p, *q, *tmp;
+
+	if (row >= buffer->n_rows)
+		return 0;
+
+	if (needle == NULL || needle_len == 0)
+		return 0;
+
+	assert(offset != NULL);
+	begin = *offset;
+	haystack = &buffer->rows[row].bytes[begin];
+	if (haystack == NULL)
+		return 0;
+
+	haystack_len = buffer->rows[row].bytes_used - begin;
+	orig_len = haystack_len;
+	p = haystack;
+	q = needle;
+	while (haystack_len > 0) {
+		while(*p != *q && haystack_len > 0) {
+			p++;
+			haystack_len--;
+		}
+		if (haystack_len == 0)
+			break;
+
+		len = needle_len;
+		tmp = p;
+		p++;
+		q++;
+		len--;
+		while(*q++ == *p++ && len > 0)
+			len--;
+
+		q = needle;
+		if (len == 0) {
+			p = tmp;
+			break;	
+		} else if (haystack_len > 0) {
+			p = ++tmp;
+			haystack_len--;
+		}
+	}
+
+	/*
+	 * Return early if we did not find.
+	 */
+	if (haystack_len == 0)
+		return 0;
+
+	/*
+	 * We found it. Now, align to valid UTF-8 boundary.
+	 */
+	target_offset = (size_t) (p - haystack);
+	*offset = 0;
+	prev = 0;
+	size_t j = 0;
+	while (*offset < target_offset &&
+	    (j = utf8_incr_col(haystack, orig_len, offset, NULL)) > 0)
+		prev = *offset;
+
+	if (*offset > target_offset)
+		*offset = prev;
+
+	*offset += begin;
+	return 1;
 }
 
 void
@@ -78,30 +157,14 @@ buffer_set_row_uflags(struct buffer *buffer, int row, int uflags)
 }
 
 size_t
-buffer_cols(
-	struct buffer *buffer, size_t row)
-{
-	if (row >= buffer->n_rows)
-		return 0;
-
-	return buffer->rows[row].n_cols;
-}
-
-size_t
 buffer_rows(
 	struct buffer *buffer)
 {
+	if (buffer->n_rows == 0)
+		if (buffer_insert_row(buffer, 0) == -1)
+			return 0;
+
 	return buffer->n_rows;
-}
-
-wchar_t
-buffer_at(
-	struct buffer *buffer, size_t row, size_t col)
-{
-	if (row >= buffer->n_rows || col >= buffer->rows[row].n_cols)
-		return '\0';
-
-	return buffer->rows[row].cols[col];
 }
 
 void
@@ -112,50 +175,77 @@ buffer_clear_row(
 	if (row >= buffer->n_rows)
 		return;
 
-	buffer->rows[row].n_cols = 0;
+	buffer->rows[row].bytes_used = 0;
+	buffer->rows[row].bytes_size = 0;
+	if (buffer->rows[row].bytes != NULL) {
+		free(buffer->rows[row].bytes);
+		buffer->rows[row].bytes = NULL;
+	}
 	buffer->rows[row].uflags = 0;
+
+	/* TODO: Update cursors properly */
 
 	broadcast_update(buffer, row, 0, row, 0, BUFFER_UPDATE_LINE);
 }
 
 /*
  * Does not NUL-terminate the string because we want to edit contents
- * that may contain NULs, but we leave space in 'dst' for a NUL to be
- * added by the caller (we check we have MB_CUR_MAX + 1 space...)
+ * that may contain NULs.
  */
-size_t
-buffer_u8str_at(
-	struct buffer *buffer,
-	size_t row,
-	size_t begin_col,
-	ssize_t end_col,
-	char *dst,
-	size_t len)
+const char *
+buffer_u8str_at(struct buffer *buffer, size_t row, size_t *sz_out)
 {
-	size_t i, outlen;
-	int tmp;
-
+	if (buffer->n_rows == 0)
+		if (buffer_insert_row(buffer, 0) == -1)
+			return NULL;
+	
 	if (row >= buffer->n_rows)
 		return 0;
-	if (begin_col >= buffer->rows[row].n_cols)
-		return 0;
+	*sz_out = buffer->rows[row].bytes_used;
+	return buffer->rows[row].bytes;
+}
 
-	outlen = 0;
-	if (end_col == -1 || end_col > buffer->rows[row].n_cols)
-		end_col = buffer->rows[row].n_cols;
-	else
-		end_col++;
+/*
+ * Iterate over string according to UTF-8 rules.
+ *
+ * Returns NULL if trying to advance over EOL i.e. that's the signal
+ * we're done.
+ *
+ * Otherwise returns buffer containing string parsed so far. If error
+ * is set then the last character in the returned string should be replaced
+ * with a replacement character U+FFFD.
+ */
+const char *
+buffer_u8str_break(struct buffer *buffer, size_t row, size_t *offset,
+    size_t *sz_out, int *error)
+{
+	size_t begin;
+	struct row *rowptr;
 
-	for (i = begin_col; i < end_col &&
-	    len >= MB_CUR_MAX + 1; i++) {
-		if ((tmp = wctomb(dst, buffer->rows[row].cols[i])) == -1)
-			continue;
-		dst += tmp;
-		len -= tmp;
-		outlen += tmp;
-	}
+	*sz_out = 0;
 
-	return outlen;
+	if (buffer->n_rows == 0)
+		if (buffer_insert_row(buffer, 0) == -1)
+			return NULL;
+	
+	if (row >= buffer->n_rows)
+		return NULL;
+	rowptr = &buffer->rows[row];
+
+	if (*offset == rowptr->bytes_used)
+		return NULL;
+
+	begin = *offset;
+	while(utf8_incr_col(rowptr->bytes, rowptr->bytes_used,
+	    offset, error) > 0 && *error == 0)
+		;
+
+	if (*offset == begin)
+		return NULL;
+
+	assert(begin < *offset);
+	*sz_out = *offset - begin;
+	return &rowptr->bytes[begin];
 }
 
 struct buffer *
@@ -271,14 +361,16 @@ buffer_insert_row(struct buffer *buffer, int row)
 {
 	assert(buffer != NULL);
 
-	if (buffer->n_rows == buffer->max_rows)
+	if (buffer->n_rows == buffer->max_rows) {
 		if (grow_array((void **) &buffer->rows,
 		    sizeof(*buffer->rows), &buffer->max_rows) == -1)
 			return -1;
+	}
 
-	if (row < buffer->n_rows)
+	if (row < buffer->n_rows) {
 		memmove(&buffer->rows[row+1], &buffer->rows[row],
 		    (buffer->n_rows - row) * sizeof(*buffer->rows));
+	}
 
 	if (buffer->n_rows - row > 0)
 		broadcast_update(buffer, row, 0, buffer->n_rows-1, 0,
@@ -292,94 +384,152 @@ buffer_insert_row(struct buffer *buffer, int row)
 
 void
 buffer_set_cursor(struct buffer *buffer, struct cursor *cursor, int row,
-    int col)
+    int offset)
 {
 	int old_row, old_col;
-
-	buffer_restrain_cursor(buffer, cursor);
 
 	old_row = cursor->row;
 	old_col = cursor->col;
 	cursor->row = row;
-	cursor->col = col;
-	buffer_restrain_cursor(buffer, cursor);
+	cursor->offset = offset;
 
 	broadcast_update(buffer, old_row, old_col, old_row, old_col,
 	    BUFFER_UPDATE_LINE);
 
-	buffer_restrain_cursor(buffer, cursor);
 	broadcast_update(buffer, cursor->row, cursor->col, cursor->row,
 	    cursor->col, BUFFER_UPDATE_LINE);
 }
 
+/*
+ * Decrease offset in the UTF-8 string by _one_ cursor position.
+ */
 void
-buffer_update_cursor(
-	struct buffer *buffer,
-	struct cursor *cursor,
-	int row_add,
-	int col_add)
+row_decr_col(struct row *rowptr, size_t *offset)
 {
-	int old_row, old_col, tmp;
+	utf8_decr_col(rowptr->bytes, rowptr->bytes_used, offset);
+}
+
+/*
+ * Increase offset in the UTF-8 string by _one_ cursor position.
+ */
+void
+row_incr_col(struct row *rowptr, size_t *offset)
+{
+	utf8_incr_col(rowptr->bytes, rowptr->bytes_used, offset, NULL);
+}
+
+void
+buffer_update_cursor(struct buffer *buffer, struct cursor *cursor,
+    int row_add, int col_add)
+{
+	int old_row, old_col;
+	struct row *rowptr;
 
 	old_row = cursor->row;
 	old_col = cursor->col;
 
-	cursor->row += row_add;
-	cursor->col += col_add;
-	if (cursor->col < 0) {
-		if (cursor->row == 0) {
-			cursor->col = 0;
-		} else {
-			cursor->row--;
-			tmp = cursor->col;
-			cursor->col = INT_MAX;
-			buffer_restrain_cursor(buffer, cursor);
-			cursor->col = buffer->rows[cursor->row].n_cols +
-			    (tmp+1);
-		}
-	} else if (cursor->row < buffer->n_rows &&
-		   cursor->col > buffer->rows[cursor->row].n_cols &&
-		   row_add == 0) {
-		cursor->col = -1 + (cursor->col -
-		    buffer->rows[cursor->row].n_cols);
-		cursor->row++;
+	if (row_add < 0) {
+		row_add *= -1;
+		while (row_add--)
+			if (cursor->row > 0)
+				cursor->row--;
+	} else if (row_add > 0) {
+		while (row_add--)
+			if (cursor->row+1 < buffer->n_rows)
+				cursor->row++;
 	}
 
-	buffer_restrain_cursor(buffer, cursor);
-	broadcast_update(buffer, old_row, old_col, old_row, old_col,
-	    BUFFER_UPDATE_LINE);
+	rowptr = &buffer->rows[cursor->row];
+	if (col_add < 0) {
+		col_add *= -1;
+		while (col_add--) {
+			if (cursor->offset > 0)
+				row_decr_col(rowptr, &cursor->offset);
+			else if (cursor->row > 0) {
+				cursor->row--;
+				rowptr = &buffer->rows[cursor->row];
+				cursor->offset = rowptr->bytes_used;
+			}
+		}
+	} else if (col_add > 0) {
+		while (col_add--) {
+			if (cursor->offset < rowptr->bytes_used)
+				row_incr_col(rowptr, &cursor->offset);
+			else if (cursor->row+1 < buffer->n_rows) {
+				cursor->row++;
+				rowptr = &buffer->rows[cursor->row];
+				cursor->offset = 0;
+			}
+		}
+	}
+
+	if (old_row != cursor->row)
+		broadcast_update(buffer, old_row, old_col, old_row, old_col,
+		    BUFFER_UPDATE_LINE);
 	broadcast_update(buffer, cursor->row, cursor->col, cursor->row,
 	    cursor->col, BUFFER_UPDATE_LINE);
 }
 
-static void
-buffer_restrain_cursor(struct buffer *buffer, struct cursor *cursor)
+static int
+buffer_make_space(struct row *rowptr, size_t offset, size_t sz)
 {
-	if (cursor->row < 0)
-		cursor->row = 0;
-	if (cursor->col < 0)
-		cursor->col = 0;
+	void *dst, *src;
+	size_t len;
 
-	if (buffer->n_rows == 0)
-		cursor->row = 0;
-	else if (cursor->row >= buffer->n_rows)
-		cursor->row = buffer->n_rows-1;
+	while (sz > 0 && sz--) {
+		if (rowptr->bytes_used == rowptr->bytes_size)
+			if (grow_array((void **) &rowptr->bytes,
+			    sizeof(*rowptr->bytes), &rowptr->bytes_size)
+			    == -1)
+				return -1;
 
-	if (buffer->n_rows == 0)
-		cursor->col = 0;
-	else if (cursor->col >= buffer->rows[cursor->row].n_cols)
-		cursor->col = buffer->rows[cursor->row].n_cols;
+		rowptr->bytes_used++;
+
+		if (offset+1 < rowptr->bytes_used) {
+			dst = &rowptr->bytes[offset+1];
+			src = &rowptr->bytes[offset];
+			len = (rowptr->bytes_used-offset) *
+			    sizeof(*rowptr->bytes);
+			memmove(dst, src, len);
+		}
+
+		offset++;
+	}
+	return 0;
+}
+
+static int
+buffer_shrink_space(struct row *rowptr, size_t offset, size_t sz)
+{
+	void *dst, *src;
+	size_t len;
+
+	while (sz > 0 && sz-- && rowptr->bytes_used > 0) {
+		if (offset+1 < rowptr->bytes_used) {
+			dst = &rowptr->bytes[offset];
+			src = &rowptr->bytes[offset+1];
+			len = (rowptr->bytes_used-offset-1) *
+			    sizeof(*rowptr->bytes);
+			memmove(dst, src, len);
+		}
+		rowptr->bytes_used--;
+	}
+	if (rowptr->bytes_used == 0 && rowptr->bytes != NULL) {
+		free(rowptr->bytes);
+		rowptr->bytes_size = 0;
+		rowptr->bytes = NULL;
+	}
+	return 0;
 }
 
 /*
- * Returns -1 if error.
+ * Returns -1 if error, otherwise returns len used.
  */
 static int
-buffer_insert_char(struct buffer *buffer, int row, int col, wchar_t ch)
+buffer_insert_char(struct buffer *buffer, size_t row, size_t *offset,
+    const char *s, size_t len)
 {
 	struct row *rowptr;
-	void *dst, *src;
-	size_t len;
 
 	if (buffer->n_rows == 0)
 		if (buffer_insert_row(buffer, 0) == -1)
@@ -390,21 +540,14 @@ buffer_insert_char(struct buffer *buffer, int row, int col, wchar_t ch)
 	rowptr = &buffer->rows[row];
 	assert(rowptr != NULL);
 
-	if (rowptr->n_cols == rowptr->max_cols)
-		if (grow_array((void **) &rowptr->cols,
-		    sizeof(*rowptr->cols), &rowptr->max_cols) == -1)
-			return -1;
+	if (buffer_make_space(rowptr, *offset, len) == -1)
+		return -1;
 
-	col = MIN(col, rowptr->n_cols);
-	if (col < rowptr->n_cols) {
-		dst = &rowptr->cols[col+1];
-		src = &rowptr->cols[col];
-		len = (rowptr->n_cols-col) * sizeof(*rowptr->cols);
-		memmove(dst, src, len);
+	while (len > 0 && len--) {
+		rowptr->bytes[*offset] = *s++;
+		(*offset)++;
 	}
 
-	rowptr->n_cols++;
-	rowptr->cols[col] = ch;
 	return 0;
 }
 
@@ -430,8 +573,8 @@ buffer_remove_row(struct buffer *buffer, int row)
 	if (buffer->n_rows == 0 || row < 0)
 		return;
 
-	if (buffer->rows[row].cols != NULL)
-		free(buffer->rows[row].cols);
+	if (buffer->rows[row].bytes != NULL)
+		free(buffer->rows[row].bytes);
 
 	if (row+1 < buffer->n_rows) {
 		dst = &buffer->rows[row];
@@ -446,64 +589,68 @@ buffer_remove_row(struct buffer *buffer, int row)
 	broadcast_update(buffer, from, 0, to, 0, BUFFER_UPDATE_LINE);
 }
 
-void
-buffer_erase_eol(struct buffer *buffer, struct cursor *cursor)
+static void
+buffer_erase_eol_at(struct buffer *buffer, size_t row, size_t offset)
 {
-	buffer_restrain_cursor(buffer, cursor);
+	struct row *rowptr;
+	size_t len;
 
 	if (buffer->n_rows == 0)
 		return;
 
-	buffer->rows[cursor->row].n_cols -=
-	    (buffer->rows[cursor->row].n_cols - cursor->col);
+	rowptr = &buffer->rows[row];
+	assert(rowptr->bytes_used >= offset);
+	len = rowptr->bytes_used - offset;
 
-	buffer_restrain_cursor(buffer, cursor);
+	rowptr->bytes_used -= len;
 
-	broadcast_update(cursor->buffer, cursor->row, cursor->col,
-	    cursor->row, INT_MAX, BUFFER_UPDATE_LINE);
+	broadcast_update(buffer, row, 0, row, 0, BUFFER_UPDATE_LINE);
+}
+
+void
+buffer_erase_eol(struct buffer *buffer, struct cursor *cursor)
+{
+	buffer_erase_eol_at(buffer, cursor->row, cursor->offset);
 }
 
 void
 buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
 {
-	void *dst, *src;
-	size_t len, i;
-
-	buffer_restrain_cursor(buffer, cursor);
+	size_t eol, offset, sz;
+	const char *p;
+	struct row *rowptr;
 
 	if (buffer->n_rows == 0)
 		return;
-	if (cursor->row == 0 && buffer->rows[cursor->row].n_cols == 0)
-		return;
 
-	if (cursor->col == buffer->rows[cursor->row].n_cols) {
+	if (cursor->offset == buffer->rows[cursor->row].bytes_used &&
+	    buffer->n_rows > 1) {
 		/*
 		 * Join head of the line below.
 		 */
 		if (cursor->row+1 < buffer->n_rows) {
-			for (i = 0; i < buffer->rows[cursor->row+1].n_cols; i++)
-				buffer_insert_char(buffer,
-				    cursor->row, INT_MAX,
-				    buffer->rows[cursor->row+1].cols[i]);
+			offset = 0;
+			eol = buffer->rows[cursor->row].bytes_used;
+			while ((p = row_at(&buffer->rows[cursor->row+1],
+			    &offset, &sz)) != NULL)
+				if (buffer_insert_char(buffer, cursor->row,
+				    &eol, p, sz) == -1)
+					return;
 		}
 
-		buffer_remove_row(buffer, cursor->row+1);
-		buffer_restrain_cursor(buffer, cursor);
+		if (cursor->row+1 < buffer->n_rows)
+			buffer_remove_row(buffer, cursor->row+1);
 		return;
 	}
 
-	if (cursor->col+1 < buffer->rows[cursor->row].n_cols) {
-		dst = &buffer->rows[cursor->row].cols[cursor->col];
-		src = &buffer->rows[cursor->row].cols[cursor->col+1];
-		len = (buffer->rows[cursor->row].n_cols - cursor->col) *
-		    sizeof(wchar_t);
-		memmove(dst, src, len);
-	}
-
-	if (buffer->rows[cursor->row].n_cols > 0)
-		buffer->rows[cursor->row].n_cols--;
-
-	buffer_restrain_cursor(buffer, cursor);
+	if (cursor->row >= buffer->n_rows)
+		return;
+	rowptr = &buffer->rows[cursor->row];
+	offset = cursor->offset;
+	p = row_at(rowptr, &offset, &sz);
+	if (p != NULL)
+		if (buffer_shrink_space(rowptr, cursor->offset, sz) == -1)
+			return;
 
 	broadcast_update(cursor->buffer, cursor->row, cursor->col,
 	    cursor->row, cursor->col, BUFFER_UPDATE_LINE);	
@@ -512,6 +659,8 @@ buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
 void
 buffer_erase(struct buffer *buffer, struct cursor *cursor)
 {
+	if (cursor->row == 0 && cursor->offset == 0)
+		return;
 	buffer_update_cursor(buffer, cursor, 0, -1);
 	buffer_delete_char(buffer, cursor);
 	return;
@@ -521,63 +670,57 @@ buffer_erase(struct buffer *buffer, struct cursor *cursor)
  * Returns -1 if error.
  */
 int
-buffer_insert(struct cursor *cursor, const char *data, size_t len)
+buffer_insert(struct cursor *cursor, const char *s, size_t len)
 {
 	int row, col;
-	int i, n;
-	wchar_t wc;
-	int from_row, from_col, to_row, to_col;
+	int from_row, from_col;
 	struct buffer *buffer = cursor->buffer;
+	unsigned char ch;
+	char *p;
+	size_t offset, offset2;
+	size_t sz;
 
 	row = from_row = CURSOR_ROW(cursor);
 	col = from_col = CURSOR_COL(cursor);
 
-	buffer_restrain_cursor(cursor->buffer, cursor);
+	if (buffer->n_rows == 0)
+		if (buffer_insert_row(buffer, 0) == -1)
+			return -1;
 
-	while (len > 0) {
-		n = mbtowc(&wc, data, len);
-		/* TODO: Handle n==0 */
-		if (n <= 0 || wc == (wchar_t) '\r')
-			n = 1;
-		else if (wc == (wchar_t) '\n') {
-			CURSOR_ROW(cursor)++;
+	offset = cursor->offset;
 
-			if (buffer->n_rows == 0)
-				if (buffer_insert_row(buffer, 0) == -1)
-					return -1;
+	while (len > 0 && len--) {
+		ch = (unsigned char) *s;
+		if (ch == '\n') {
+			cursor->offset = offset;
 
-			if (buffer_insert_row(cursor->buffer,
-			    CURSOR_ROW(cursor)) == -1)
+			if (buffer_insert_row(buffer, cursor->row+1) == -1)
 				return -1;
+			cursor->row++;
 
-			for (i = cursor->col;
-			    i < buffer->rows[cursor->row-1].n_cols; i++)
-				buffer_insert_char(buffer,
-				    cursor->row, cursor->col-i,
-				    buffer->rows[cursor->row-1].cols[i]);
+			offset2 = 0;
+			while ((p = row_at(&buffer->rows[cursor->row-1],
+			    &offset, &sz)) != NULL)
+				buffer_insert_char(buffer, cursor->row,
+				    &offset2, p, sz);
 
-			buffer->rows[cursor->row-1].n_cols -=
-			    (buffer->rows[cursor->row-1].n_cols - cursor->col);
+			buffer_erase_eol_at(buffer, cursor->row-1,
+			    cursor->offset);
 
-			CURSOR_COL(cursor) = 0;
-			row = CURSOR_ROW(cursor);
-			col = CURSOR_COL(cursor);
+			cursor->col = 0;
+			cursor->offset = 0;
+			offset = 0;
 		} else {
-			if (buffer_insert_char(cursor->buffer, row, col,
-			    wc) == -1)
+			if (buffer_insert_char(cursor->buffer, cursor->row,
+			    &offset, &ch, 1) == -1)
 				return -1;
-
-			col = ++CURSOR_COL(cursor);
 		}
-		len -= n;
-		data += n;
+		s++;
 	}
-
-	to_row = row;
-	to_col = col;
+	cursor->offset = offset;
 
 	broadcast_update(cursor->buffer,
-	    from_row, from_col, to_row, to_col, BUFFER_UPDATE_LINE);
+	    from_row, 0, cursor->row, 0, BUFFER_UPDATE_LINE);
 	return 0;
 }
 
@@ -590,11 +733,37 @@ dump_buffer(struct buffer *buffer)
 
 	assert(buffer != NULL);
 
+	printf("DUMP_BUFFER %zu\n", buffer->n_rows);
 	for (row = 0; row < buffer->n_rows; row++) {
 		rowptr = &buffer->rows[row];
-		for (col = 0; col < rowptr->n_cols; col++)
-			putchar(rowptr->cols[col]);
-		putchar('\n');
+		printf("%zu (%zu / %zu): '", row, rowptr->bytes_used,
+		    rowptr->bytes_size);
+		for (col = 0; col < rowptr->bytes_used; col++)
+			putchar(rowptr->bytes[col]);
+		printf("'\n");
 	}
 }
 #endif
+
+static char *
+row_at(struct row *rowptr, size_t *offset, size_t *sz_out)
+{
+	size_t begin;
+
+	begin = *offset;
+	if (utf8_incr_col(rowptr->bytes, rowptr->bytes_used, offset, NULL)
+	    == 0)
+		return NULL;
+
+	assert(begin < *offset);
+	*sz_out = *offset - begin;
+	return &rowptr->bytes[begin];
+}
+
+size_t
+buffer_bytes_at(struct buffer *buffer, size_t row)
+{
+	if (row >= buffer->n_rows)
+		return 0;
+	return buffer->rows[row].bytes_used;
+}

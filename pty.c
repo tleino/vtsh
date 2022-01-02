@@ -239,9 +239,9 @@ pty_submit_stdin(const char *s, void *udata)
 		buffer_clear_row(pty->ts_buffer, pty->ts_icursor->row);
 		buffer_set_row_uflags(pty->ts_buffer, pty->ts_icursor->row,
 		    ROW_UFLAGS_CMDLINE);
-		pty->ts_icursor->col = 0;
+		pty->ts_icursor->offset = 0;
 		pty->ts_ocursor->row = pty->ts_icursor->row;
-		pty->ts_ocursor->col = pty->ts_icursor->col;
+		pty->ts_ocursor->offset = pty->ts_icursor->offset;
 
 		rows = buffer_rows(pty->ts_buffer);
 		n_overwrite = 0;
@@ -277,8 +277,9 @@ pty_file_updated(int x, int y, int w, int h, BufferUpdate type, void *udata)
 void
 pty_save(struct pty *pty)
 {
-	static char dst[4096];
-	int i, n, rows;
+	int i, rows;
+	const char *p;
+	size_t sz;
 
 	if (pty->ts_buffer == NULL || pty->file == NULL)
 		return;
@@ -294,11 +295,11 @@ pty_save(struct pty *pty)
 
 	rows = buffer_rows(pty->ts_buffer);
 	for (i = 0; rows > 0 && i < rows-1; i++) {
-		n = buffer_u8str_at(pty->ts_buffer, i, 0, -1, dst,
-		    sizeof(dst)-1);
-		dst[n] = '\0';
-
-		fprintf(pty->fp, "%s\n", dst);
+		p = buffer_u8str_at(pty->ts_buffer, i, &sz);
+		if (p != NULL) {
+			fwrite(p, sz, 1, pty->fp);
+			fwrite("\n", 1, 1, pty->fp);
+		}
 	}
 	fclose(pty->fp);
 
@@ -320,6 +321,7 @@ void
 pty_run_command(struct pty *pty, const char *s)
 {
 	buffer_clear_row(pty->cmd_buffer, 0);
+	pty->cmd_cursor->offset = 0;
 	buffer_insert(pty->cmd_cursor, s, strlen(s));
 	pty_submit_command(s, pty);
 }
@@ -329,6 +331,7 @@ pty_submit_command(const char *s, void *udata)
 {
 	int status;
 	char *sh;
+	const char *p;
 	struct pty *pty = udata, *master;
 	struct termios ts;
 	size_t len;
@@ -377,6 +380,7 @@ pty_submit_command(const char *s, void *udata)
 				if (pty->dp != NULL) {
 					if (fchdir(dirfd(pty->dp)) != -1) {
 						label_set(pty->cwd, resolved);
+						pty->cmd_cursor->offset = 0;
 						buffer_clear_row(
 						    pty->cmd_buffer, 0);
 						buffer_insert(
@@ -399,11 +403,11 @@ pty_submit_command(const char *s, void *udata)
 
 		if (send_ts) {
 			for (i = 0; i < buffer_rows(pty->ts_buffer); i++) {
-				n = buffer_u8str_at(pty->ts_buffer,
-				    i, 0, -1, buf, sizeof(buf)-1);
-				buf[n] = '\0';
-				write(master->ptyfd, buf, n);
-				write(master->ptyfd, "\n", 1);
+				p = buffer_u8str_at(pty->ts_buffer, i, &n);
+				if (p != NULL) {
+					write(master->ptyfd, p, n);
+					write(master->ptyfd, "\n", 1);
+				}
 			}
 			write(master->ptyfd, delim, strlen(delim));
 		}

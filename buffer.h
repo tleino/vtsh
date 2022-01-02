@@ -26,7 +26,11 @@ struct buffer;
 struct cursor {
 	int row;
 	int col;
+	size_t offset;
 	struct buffer *buffer;
+	unsigned char incoming[4];
+	unsigned char n_incoming;
+	unsigned char n_expect;
 };
 
 #define CURSOR_COL(_x) (_x)->col
@@ -51,7 +55,10 @@ void		 buffer_set_row_uflags(struct buffer *, int, int);
 
 struct cursor	*buffer_cursor_create(struct buffer *);
 void		 buffer_cursor_free(struct cursor *);
+
+/* offset = buffer_insert(cursor, str, len) */
 int		 buffer_insert(struct cursor *, const char *, size_t);
+
 void		 buffer_erase(struct buffer *, struct cursor *);
 void		 buffer_delete_char(struct buffer *, struct cursor *);
 void		 buffer_erase_eol(struct buffer *, struct cursor *);
@@ -64,11 +71,34 @@ void		 buffer_set_cursor(struct buffer *, struct cursor *,
 void		 buffer_clear_row(struct buffer *, int);
 
 size_t		 buffer_cols(struct buffer *, size_t);
+size_t
+buffer_offset(struct buffer *buffer, size_t row, size_t col);
 
 size_t		 buffer_rows(struct buffer *);
-wchar_t		 buffer_at(struct buffer *, size_t, size_t);
 
-size_t		 buffer_u8str_at(struct buffer *, size_t, size_t,
-		    ssize_t, char *, size_t);
+#if 0
+/* buffer_at(buffer, row, skip, offset, sz_out) */
+const char	*buffer_at(struct buffer *, size_t, size_t, size_t *,
+		    size_t *);
+#endif
+
+#if 0
+size_t
+buffer_eol(struct buffer *buffer, size_t row);
+#endif
+
+size_t
+buffer_bytes_at(struct buffer *buffer, size_t row);
+
+/* buffer_u8str_at(buffer, row, sz_out) */
+const char	*buffer_u8str_at(struct buffer *, size_t, size_t *);
+
+const char *
+buffer_u8str_break(struct buffer *buffer, size_t row, size_t *offset,
+    size_t *sz_out, int *error);
+
+int
+buffer_match(struct buffer *buffer, size_t row, const char *needle,
+    size_t needle_len, size_t *offset);
 
 #endif

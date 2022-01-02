@@ -15,33 +15,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "util.h"
-#include "config.h"
+#ifndef UTF8_H
+#define UTF8_H
 
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+#include <stddef.h>
 
-/*
- * Returns -1 if error.
- */
-int
-grow_array(void **arr, size_t sz, size_t *max_elem)
-{
-	size_t target;
-	void *tmp;
+int	 utf8_incr_col(const char *, size_t, size_t *, int *);
+int	 utf8_decr_col(const char *, size_t, size_t *);
 
-	assert(arr != NULL);
-	assert(sz > 0);
-
-	target = (*max_elem) * 2;
-	if (target == 0)
-		target = ALLOC_CHUNK;
-
-	if ((tmp = realloc(*arr, target * sz)) == NULL)
-		return -1;
-
-	*arr = tmp;
-	*max_elem = target;
-	return 0;
-}
+#endif

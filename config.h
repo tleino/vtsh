@@ -40,4 +40,25 @@
  */
 #define WANT_LINE_NUMBERS
 
+/*
+ * DEBUG_UTF8:
+ *   Print UTF-8 errors.
+ */
+/* #define DEBUG_UTF8 */
+
+/*
+ * CHUNK_BREAK_LIMIT:
+ *   Break string drawing after certain number of bytes for avoiding
+ *   drawing excessively over the window width. This is without needing
+ *   to calculate size after each drawn character.
+ */
+#define CHUNK_BREAK_LIMIT 80
+
+/*
+ * ALLOC_CHUNK:
+ *   How much bytes to allocate initially for dynamic arrays such as for
+ *   lines.
+ */
+#define ALLOC_CHUNK 80
+
 #endif

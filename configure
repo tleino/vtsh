@@ -29,11 +29,11 @@ SYSTEM_CFLAGS=
 case $(uname) in
 	Linux )
 		SYSTEM_CFLAGS="-D_POSIX_C_SOURCE=200809L -DHAVE_PTY_H"
-		SYSTEM_LDFLAGS=-lutil
+		SYSTEM_LDFLAGS="-lutil -lm"
 	;;
 	OpenBSD )
 		SYSTEM_CFLAGS="-DHAVE_UTIL_H -DHAVE_PLEDGE"
-		SYSTEM_LDFLAGS=-lutil
+		SYSTEM_LDFLAGS="-lutil -lm"
 	;;
 esac
 echo "system: $(uname)"

@@ -462,8 +462,13 @@ pty_submit_command(const char *s, void *udata)
 		} else {
 			while ((ent = readdir(pty->dp)) != NULL) {
 				buffer_insert(pty->ts_ocursor, ":", 1);
+#ifdef _DIRENT_HAVE_D_NAMLEN
 				buffer_insert(pty->ts_ocursor, ent->d_name,
 				    ent->d_namlen);
+#else
+				buffer_insert(pty->ts_ocursor, ent->d_name,
+				    strlen(ent->d_name));
+#endif
 				if (lstat(ent->d_name, &sb) == -1)
 					warn("fstat %s", ent->d_name);
 				else {

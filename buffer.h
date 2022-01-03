@@ -64,6 +64,8 @@ void		 buffer_delete_char(struct buffer *, struct cursor *);
 void		 buffer_erase_eol(struct buffer *, struct cursor *);
 void		 buffer_remove_row(struct buffer *, int);
 
+const char	*buffer_word_at(struct buffer *, size_t, size_t *, size_t *);
+
 void		 buffer_update_cursor(struct buffer *, struct cursor *,
 		    int, int);
 void		 buffer_set_cursor(struct buffer *, struct cursor *,

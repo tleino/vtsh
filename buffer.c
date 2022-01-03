@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <err.h>
 #include <limits.h>
+#include <ctype.h>
 
 struct row {
 	char *bytes;
@@ -67,6 +68,56 @@ buffer_row_uflags(struct buffer *buffer, int row)
 		return 0;
 
 	return buffer->rows[row].uflags;
+}
+
+/*
+ * Select word at position, or whole line if we're pointing at EOL.
+ * Offset is modified to point at the end of the word.
+ */
+const char *
+buffer_word_at(struct buffer *buffer, size_t row, size_t *offset,
+    size_t *sz_out)
+{
+	size_t begin, end, orig_offset;
+	const char *s;
+	size_t len;
+	struct row *rowptr;
+
+	if (row >= buffer->n_rows)
+		return NULL;
+
+	rowptr = &buffer->rows[row];
+	if (*offset >= rowptr->bytes_used) {
+		*offset = 0;
+		*sz_out = rowptr->bytes_used;
+		return rowptr->bytes;
+	}
+
+	if (isspace(rowptr->bytes[*offset]))
+		return NULL;
+
+	len = rowptr->bytes_used;
+	s = rowptr->bytes;
+	orig_offset = *offset;
+
+	while (!isspace(rowptr->bytes[*offset]) &&
+	    utf8_decr_col(s, len, offset) > 0)
+		;
+
+	begin = *offset;
+	*offset = orig_offset;
+
+	while (!isspace(rowptr->bytes[*offset]) &&
+	    utf8_incr_col(s, len, offset, NULL) > 0)
+		;
+
+	end = *offset;
+	assert(end >= begin);
+	*sz_out = end - begin;
+	if (*sz_out == 0)
+		return NULL;
+
+	return &s[begin];
 }
 
 /*

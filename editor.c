@@ -656,7 +656,7 @@ editor_mousepress(struct widget *widget, XButtonEvent *e, void *udata)
 	int row, col;
 	const char *p;
 	char *q;
-	size_t sz;
+	size_t sz, offset;
 
 	if (e->type == ButtonRelease)
 		return 0;
@@ -680,7 +680,8 @@ editor_mousepress(struct widget *widget, XButtonEvent *e, void *udata)
 		e->x += editor->begin_offset;
 		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
 
-		p = buffer_u8str_at(editor->buffer, row, &sz);
+		offset = (size_t) col;
+		p = buffer_word_at(editor->buffer, row, &offset, &sz);
 		if (p != NULL) {
 			q = malloc(sz + 1);
 			if (q != NULL && editor->exec) {

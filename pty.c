@@ -296,10 +296,9 @@ pty_save(struct pty *pty)
 	rows = buffer_rows(pty->ts_buffer);
 	for (i = 0; rows > 0 && i < rows-1; i++) {
 		p = buffer_u8str_at(pty->ts_buffer, i, &sz);
-		if (p != NULL) {
+		if (p != NULL)
 			fwrite(p, sz, 1, pty->fp);
-			fwrite("\n", 1, 1, pty->fp);
-		}
+		fwrite("\n", 1, 1, pty->fp);
 	}
 	fclose(pty->fp);
 

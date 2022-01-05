@@ -93,18 +93,29 @@ buffer_word_at(struct buffer *buffer, size_t row, size_t *offset,
 		return rowptr->bytes;
 	}
 
-	if (isspace(rowptr->bytes[*offset]))
-		return NULL;
-
 	len = rowptr->bytes_used;
 	s = rowptr->bytes;
+	orig_offset = *offset;
+	while (isspace(rowptr->bytes[*offset]) &&
+	    utf8_decr_col(s, len, offset) > 0)
+		;
+
+	if (isspace(rowptr->bytes[*offset])) {
+		*offset = orig_offset;
+		*sz_out = 0;
+		return NULL;
+	}
+
 	orig_offset = *offset;
 
 	while (!isspace(rowptr->bytes[*offset]) &&
 	    utf8_decr_col(s, len, offset) > 0)
 		;
 
-	begin = *offset;
+	if (isspace(rowptr->bytes[*offset]))
+		begin = *offset + 1;
+	else
+		begin = *offset;
 	*offset = orig_offset;
 
 	while (!isspace(rowptr->bytes[*offset]) &&
@@ -112,10 +123,16 @@ buffer_word_at(struct buffer *buffer, size_t row, size_t *offset,
 		;
 
 	end = *offset;
-	assert(end >= begin);
-	*sz_out = end - begin;
-	if (*sz_out == 0)
+	if (begin > end) {
+		*sz_out = 0;
+		*offset = orig_offset;
 		return NULL;
+	}
+	*sz_out = end - begin;
+	if (*sz_out == 0) {
+		*offset = orig_offset;
+		return NULL;
+	}
 
 	return &s[begin];
 }

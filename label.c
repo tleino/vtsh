@@ -98,6 +98,9 @@ label_draw(int x, int y, int width, int height, void *udata)
 {
 	struct label *label = udata;
 
+	if (label->text == NULL)
+		return;
+
 	font_set_fgcolor(COLOR_FLAGS);
 	font_set_bgcolor(COLOR_TITLE_BG_NORMAL);
 	x = font_draw(WINDOW(label), 0, 0, 0, label->text,

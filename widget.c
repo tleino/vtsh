@@ -438,14 +438,6 @@ widget_find_focusable(struct widget *widget, FocusDir dir, int *has_prev,
 	int i;
 	struct widget *child;
 
-	if (widget->nchildren == 0 && widget->can_focus) {
-		if (widget == prevfocus)
-			*has_prev = 1;
-		else if (*has_prev == 1 && widget->visible &&
-		    (widget->level == level || level == -1))
-			return widget;
-	}
-
 	switch (dir) {
 	case FOCUS_FORWARD:
 		for (i = 0; i < widget->nchildren; i++) {
@@ -467,6 +459,15 @@ widget_find_focusable(struct widget *widget, FocusDir dir, int *has_prev,
 		}
 		break;
 	}
+
+	if (widget->can_focus) {
+		if (widget == prevfocus)
+			*has_prev = 1;
+		else if (*has_prev == 1 && widget->visible &&
+		    (widget->level == level || level == -1))
+			return widget;
+	}
+
 	return NULL;
 }
 
@@ -668,7 +669,7 @@ _widget_create(int windowless, int transient, unsigned long bgcolor,
 		add_idle_handler(widget_root_idle, widget);
 	} else {
 		widget_add_child(parent, widget);
-		parent_window = widget_find_parent_window(parent)->window;
+		parent_window = widget_find_parent_window(widget)->window;
 	}
 
 	if (parent != NULL && !transient) {

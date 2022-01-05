@@ -124,14 +124,19 @@ widget_call_geometry(struct widget *widget)
 	int i;
 
 	if (widget->parent != NULL) {
-		widget->old_size[WIDTH_AXIS] = widget->size[WIDTH_AXIS];
-		widget->old_size[HEIGHT_AXIS] = widget->size[HEIGHT_AXIS];
-		widget->old_pos[WIDTH_AXIS] = widget->pos[WIDTH_AXIS];
-		widget->old_pos[HEIGHT_AXIS] = widget->pos[HEIGHT_AXIS];
-		widget->old_physical_size[WIDTH_AXIS] =
-		    widget->physical_size[WIDTH_AXIS];
-		widget->old_physical_size[HEIGHT_AXIS] =
-		    widget->physical_size[HEIGHT_AXIS];
+		if (!widget->was_hidden) {
+			widget->old_size[WIDTH_AXIS] =
+			    widget->size[WIDTH_AXIS];
+			widget->old_size[HEIGHT_AXIS] =
+			    widget->size[HEIGHT_AXIS];
+			widget->old_pos[WIDTH_AXIS] = widget->pos[WIDTH_AXIS];
+			widget->old_pos[HEIGHT_AXIS] =
+			    widget->pos[HEIGHT_AXIS];
+			widget->old_physical_size[WIDTH_AXIS] =
+			    widget->physical_size[WIDTH_AXIS];
+			widget->old_physical_size[HEIGHT_AXIS] =
+			    widget->physical_size[HEIGHT_AXIS];
+		}
 
 		if (!widget->has_managed_geometry) {
 			widget->size[WIDTH_AXIS] =
@@ -798,11 +803,14 @@ widget_show(struct widget *widget)
 	widget->old_pos[0] = 0;
 	widget->old_pos[1] = 0;
 
+	widget->was_hidden = 1;
 	widget_update_geometry(widget);	
+	widget->was_hidden = 0;
 
-	if (widget->window != 0) {
+	widget_flush_changes(widget);
+
+	if (widget->window != 0)
 		XMapWindow(DPY(dpy), widget->window);
-	}
 }
 
 void

@@ -111,6 +111,7 @@ struct widget {
 	int has_managed_geometry;
 
 	int visible;
+	int was_hidden;
 
 	long event_mask;
 

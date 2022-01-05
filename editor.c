@@ -67,6 +67,33 @@ static int
 editor_pos_from_offset(struct editor *editor, int row, int pxoffset);
 
 static void
+editor_prompt_update_geometry(void *udata)
+{
+	struct editor *editor = udata;
+
+	WIDGET(editor)->pos[1] = WIDGET(editor)->size[1] - font_height();
+	WIDGET(editor)->size[1] = font_height();
+
+	WIDGET(editor)->changes_mask = 0;
+	if (WIDGET(editor)->pos[1] > 0 && WIDGET(editor)->old_pos[1] !=
+	    WIDGET(editor)->pos[1]) {
+		WIDGET(editor)->changes.y = WIDGET(editor)->pos[1];
+		WIDGET(editor)->changes_mask |= CWY;
+	} 
+	if (WIDGET(editor)->size[1] > 0 && WIDGET(editor)->old_size[1] !=
+	    WIDGET(editor)->size[1]) {
+		WIDGET(editor)->changes.height = WIDGET(editor)->size[1];
+		WIDGET(editor)->changes_mask |= CWHeight;
+	}
+	if (WIDGET(editor)->size[0] > 0 && WIDGET(editor)->old_size[0] !=
+	    WIDGET(editor)->size[0]) {
+		WIDGET(editor)->changes.width = WIDGET(editor)->size[0];
+		WIDGET(editor)->changes_mask |= CWWidth;
+	}
+	WIDGET(editor)->has_managed_geometry = 1;
+}
+
+static void
 editor_update_geometry(void *udata)
 {
 	struct editor *editor = udata;
@@ -523,8 +550,11 @@ editor_create(struct dpy *dpy, struct cursor *cursor, EditSubmitHandler submit,
 			editor->prompt = editor_create(dpy,
 			    editor->prompt_cursor, editor_prompt_submit,
 			    editor, COLOR_TITLE_FG_NORMAL, 1, 1,
-			    "prompt", parent);
+			    "prompt", WIDGET(editor));
 		if (editor->prompt) {
+			widget_set_geometry_callback(WIDGET(editor->prompt),
+			    editor_prompt_update_geometry,
+			    editor->prompt);
 			editor->prompt->prompt_parent = editor;
 			WIDGET(editor->prompt)->level = 1;
 			WIDGET_PREFER_WIDTH(editor->prompt) = 9999;

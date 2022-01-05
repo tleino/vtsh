@@ -456,6 +456,16 @@ buffer_set_cursor(struct buffer *buffer, struct cursor *cursor, int row,
 {
 	int old_row, old_col;
 
+	if (row < 0 || buffer->n_rows == 0)
+		row = 0;
+	else if (row >= buffer->n_rows)
+		row = buffer->n_rows-1;
+
+	if (offset > buffer->rows[row].bytes_used)
+		offset = buffer->rows[row].bytes_used;
+	else if (offset < 0)
+		offset = 0;
+
 	old_row = cursor->row;
 	old_col = cursor->col;
 	cursor->row = row;

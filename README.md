@@ -245,9 +245,10 @@ should feel at home.
 * **Ctrl+o** Open line.
 * **Backspace** Delete character on the left.
 * **Ctrl+x Ctrl+s** Save file.
-* **Ctrl+x Ctrl+g** Go to line number.
-* **Ctrl+s/r** Search forward/backward.
+* **Ctrl+x g** Go to line number.
+* **Ctrl+x Ctrl+g** Cancel prompt / action.
 * **Ctrl+g** Cancel prompt / action.
+* **Ctrl+s/r** Search forward/backward.
 
 ### Misc
 * **Alt+n** Open new window.

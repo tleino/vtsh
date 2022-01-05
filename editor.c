@@ -758,6 +758,17 @@ editor_keypress(XKeyEvent *e, void *udata)
 		case XK_s:	/* bubble up */
 			return 0;
 		case XK_g:
+			if (vc->prompt_parent != NULL) {
+				vc->prompt_action = PROMPT_ACTION_NONE;
+				widget_hide(WIDGET(vc));
+				widget_focus(WIDGET(vc->prompt_parent));
+			}
+			return 1;
+		}
+	} else if (e->state == 0 && vc->x_on) {
+		vc->x_on = 0;
+		switch (sym) {
+		case XK_g:
 			if (vc->prompt != NULL) {
 				vc->prompt_action = PROMPT_ACTION_GOTO;
 				widget_show(WIDGET(vc->prompt));
@@ -778,6 +789,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 	if (e->state & ControlMask) {
 		switch (sym) {
 		case XK_g:
+			vc->x_on = 0;
 			if (vc->prompt_parent != NULL) {
 				vc->prompt_action = PROMPT_ACTION_NONE;
 				widget_hide(WIDGET(vc));

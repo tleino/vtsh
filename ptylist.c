@@ -170,6 +170,9 @@ ptylist_free(struct ptylist *ptylist)
 	if (ptylist->vbox != NULL)
 		layout_free(ptylist->vbox);
 
+	if (ptylist->context_menu != NULL)
+		widget_free(ptylist->context_menu);
+
 	widget_free(WIDGET(ptylist));
 	free(ptylist);
 
@@ -184,8 +187,7 @@ ptylist_context_close(struct ptylist *ptylist)
 	if (ptylist->context_menu == NULL)
 		return;
 
-	widget_free(ptylist->context_menu);
-	ptylist->context_menu = NULL;
+	widget_hide(ptylist->context_menu);
 	ptylist->context_pty = NULL;
 	if (ptylist->context_s != NULL) {
 		free(ptylist->context_s);
@@ -241,13 +243,13 @@ ptylist_context_open(struct ptylist *ptylist, struct pty *pty,
 	if (ptylist->context_menu != NULL) {
 		XMoveWindow(DPY(dpy), ptylist->context_menu->window, x, y);
 		XRaiseWindow(DPY(dpy), ptylist->context_menu->window);
-		return;
+		widget_show(ptylist->context_menu);
+	} else {
+		ptylist->context_menu = widget_create_transient("context_menu",
+		    widget_find_root(WIDGET(ptylist)));
+		if (ptylist->context_menu == NULL)
+			return;
 	}
-
-	ptylist->context_menu = widget_create_transient("context_menu",
-	    widget_find_root(WIDGET(ptylist)));
-	if (ptylist->context_menu == NULL)
-		return;
 
 	ptylist->context_pty = pty;
 	ptylist->context_s = strdup(s);

@@ -27,7 +27,7 @@ struct widget;
 
 typedef void (*EditSubmitHandler)(const char *, void *);
 typedef int (*EditResizeHandler)(Window, int *, int *, void *);
-typedef void (*EditExecHandler)(const char *, void *);
+typedef void (*EditExecHandler)(const char *, int x, int y, void *);
 
 typedef enum prompt_action {
 	PROMPT_ACTION_NONE,

@@ -31,6 +31,7 @@ struct button {
 	struct label *label;
 	ButtonCallback callback;
 	void *callback_udata;
+	int act_on_release;
 };
 
 struct button	*button_create(const char *, ButtonCallback, void *,

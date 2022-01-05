@@ -23,6 +23,9 @@
 #include "editor.h"
 #include "xevent.h"
 #include "font.h"
+#include "button.h"
+#include "util.h"
+#include "event.h"
 
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
@@ -42,6 +45,10 @@ struct ptylist {
 	struct layout *vbox;
 	struct ptylist *first;
 	struct ptylist *next;
+
+	struct widget	*context_menu;
+	struct pty	*context_pty;
+	char		*context_s;
 };
 
 static int		 ptylist_keypress(XKeyEvent *, void *);
@@ -53,8 +60,12 @@ static void		 ptylist_destroy(void *);
 static void		 ptylist_create_new_window(void);
 static void		 ptylist_close_pty(struct ptylist *, struct pty *);
 
+static void		 ptylist_context_open(struct ptylist *,
+			    struct pty *, const char *, int, int);
+static void		 ptylist_context_close(struct ptylist *);
+
 static void		 ptylist_ptyaction(struct pty *, PtyAction,
-			    const char *, void *);
+			    const char *, int, int, void *);
 
 static int		 n_ptylist;
 static int		 ptylist_i = 1;
@@ -168,15 +179,129 @@ ptylist_free(struct ptylist *ptylist)
 }
 
 static void
-ptylist_ptyaction(struct pty *pty, PtyAction ptyaction, const char *s,
-    void *udata)
+ptylist_context_close(struct ptylist *ptylist)
+{
+	if (ptylist->context_menu == NULL)
+		return;
+
+	widget_free(ptylist->context_menu);
+	ptylist->context_menu = NULL;
+	ptylist->context_pty = NULL;
+	if (ptylist->context_s != NULL) {
+		free(ptylist->context_s);
+		ptylist->context_s = NULL;
+	}
+}
+
+static void
+ptylist_open_button(struct button *button, void *udata)
 {
 	struct ptylist *ptylist = udata;
+	struct pty *pty;
+	char *s;
+
+	if (ptylist->context_menu == NULL)
+		return;
+
+	s = malloc(strlen(ptylist->context_s) + 2);
+	if (s != NULL) {
+		snprintf(s, strlen(ptylist->context_s) + 2,
+		    ":%s", ptylist->context_s);
+		pty = ptylist_add_pty(ptylist, NULL);
+		pty_run_command(pty, s);
+		free(s);
+	}
+
+	ptylist_context_close(ptylist);
+}
+
+static void
+ptylist_exec_button(struct button *button, void *udata)
+{
+	struct ptylist *ptylist = udata;
+	struct pty *pty;
+
+	if (ptylist->context_menu == NULL)
+		return;
+
+	pty = ptylist_add_pty(ptylist, NULL);
+	pty_run_command(pty, ptylist->context_s);
+
+	ptylist_context_close(ptylist);
+}
+
+static void
+ptylist_context_open(struct ptylist *ptylist, struct pty *pty,
+    const char *s, int x, int y)
+{
+	struct button *open_button, *exec_button;
+	struct layout *vbox;
+	extern struct dpy *dpy;
+
+	if (ptylist->context_menu != NULL) {
+		XMoveWindow(DPY(dpy), ptylist->context_menu->window, x, y);
+		XRaiseWindow(DPY(dpy), ptylist->context_menu->window);
+		return;
+	}
+
+	ptylist->context_menu = widget_create_transient("context_menu",
+	    widget_find_root(WIDGET(ptylist)));
+	if (ptylist->context_menu == NULL)
+		return;
+
+	ptylist->context_pty = pty;
+	ptylist->context_s = strdup(s);
+
+	XMoveWindow(DPY(dpy), ptylist->context_menu->window, x, y);
+	vbox = layout_create_vbox("context_vbox", ptylist->context_menu);
+	open_button = button_create("open", ptylist_open_button, ptylist,
+	    "open", WIDGET(vbox));
+	open_button->act_on_release = 1;
+	exec_button = button_create("exec", ptylist_exec_button, ptylist,
+	    "exec", WIDGET(vbox));
+	exec_button->act_on_release = 1;
+	XResizeWindow(DPY(dpy), ptylist->context_menu->window,
+	    MAX(
+	        WIDGET(open_button)->prefer_size[0],
+	        WIDGET(exec_button)->prefer_size[0]),
+	    font_height() * 2);
+	widget_show(ptylist->context_menu);
+}
+
+static void
+ptylist_ptyaction(struct pty *pty, PtyAction ptyaction, const char *s,
+    int x, int y, void *udata)
+{
+	struct ptylist *ptylist = udata;
+	extern struct dpy *dpy;
+	XEvent e;
 
 	switch (ptyaction) {
 	case PtyActionOpen:
-		pty = ptylist_add_pty(ptylist, NULL);
-		pty_run_command(pty, s);
+		ptylist_context_open(ptylist, pty, s, x, y);
+
+		XGrabPointer(DPY(dpy), ptylist->context_menu->window, False,
+		    ButtonPressMask | ButtonReleaseMask | ButtonMotionMask,
+		    GrabModeAsync, GrabModeSync,
+		    None, None, CurrentTime);
+
+		XSync(DPY(dpy), False);
+		event_dispatch_xevents(1);
+
+		XMaskEvent(DPY(dpy), ButtonReleaseMask, &e);
+
+		if (e.xbutton.button == 3 &&
+		    e.xbutton.window == ptylist->context_menu->window &&
+		    e.xbutton.subwindow != 0) {
+			e.xbutton.window = e.xbutton.subwindow;
+			XSendEvent(DPY(dpy), e.xbutton.subwindow,
+			    True, ButtonReleaseMask, &e);
+
+		} else
+			ptylist_context_close(ptylist);
+
+		XUngrabPointer(DPY(dpy), CurrentTime);
+		event_dispatch_xevents(1);
 		break;
 	case PtyActionClose:
 		ptylist_close_pty(ptylist, pty);

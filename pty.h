@@ -36,7 +36,7 @@ typedef enum pty_action {
 } PtyAction;
 
 typedef void (*PtyActionCallback)(struct pty *, PtyAction, const char *,
-    void *);
+    int x, int y, void *);
 
 struct pty {
 	struct widget *parent;

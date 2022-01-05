@@ -62,7 +62,7 @@ static void		 widget_focus_dir(struct widget *, FocusDir, int);
 static struct widget	*widget_find_focusable(struct widget *, FocusDir,
 			    int *, struct widget *, int);
 
-static struct widget	*_widget_create(int, unsigned long, const char *,
+static struct widget	*_widget_create(int, int, unsigned long, const char *,
 			    struct widget *);
 
 static void		 widget_notify_focus_change(struct widget *, int);
@@ -598,7 +598,7 @@ widget_create_windowless(const char *name, struct widget *parent)
 {
 	extern struct dpy *dpy;
 
-	return _widget_create(1, BlackPixel(DPY(dpy), DPY_SCREEN(dpy)),
+	return _widget_create(1, 0, BlackPixel(DPY(dpy), DPY_SCREEN(dpy)),
 	    name, parent);
 }
 
@@ -607,7 +607,16 @@ widget_create(const char *name, struct widget *parent)
 {
 	extern struct dpy *dpy;
 
-	return _widget_create(0, BlackPixel(DPY(dpy), DPY_SCREEN(dpy)),
+	return _widget_create(0, 0, BlackPixel(DPY(dpy), DPY_SCREEN(dpy)),
+	    name, parent);
+}
+
+struct widget *
+widget_create_transient(const char *name, struct widget *parent)
+{
+	extern struct dpy *dpy;
+
+	return _widget_create(0, 1, BlackPixel(DPY(dpy), DPY_SCREEN(dpy)),
 	    name, parent);
 }
 
@@ -615,12 +624,12 @@ struct widget *
 widget_create_colored(unsigned long bgcolor, const char *name,
     struct widget *parent)
 {
-	return _widget_create(0, bgcolor, name, parent);
+	return _widget_create(0, 0, bgcolor, name, parent);
 }
 
 static struct widget *
-_widget_create(int windowless, unsigned long bgcolor, const char *name,
-    struct widget *parent)
+_widget_create(int windowless, int transient, unsigned long bgcolor,
+    const char *name, struct widget *parent)
 {
 	struct widget *widget;
 	Window parent_window;
@@ -633,7 +642,7 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 
 	widget->name = strdup(name);
 
-	if (parent == NULL) {
+	if (parent == NULL || transient) {
 		assert(windowless == 0);
 
 		parent_window = DPY_ROOT(dpy);
@@ -662,7 +671,7 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 		parent_window = widget_find_parent_window(parent)->window;
 	}
 
-	if (parent != NULL) {
+	if (parent != NULL && !transient) {
 		widget->pos[WIDTH_AXIS] = parent->pos[WIDTH_AXIS];
 		widget->pos[HEIGHT_AXIS] = parent->pos[HEIGHT_AXIS];
 		widget->size[WIDTH_AXIS] = parent->size[WIDTH_AXIS];
@@ -681,7 +690,7 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 
 	widget->event_mask |= ButtonPressMask;
 	widget->event_mask |= ButtonReleaseMask;
-	widget->event_mask |= ButtonMotionMask;
+	widget->event_mask |= Button1MotionMask;
 	a.event_mask = widget->event_mask;
 	v |= CWEventMask;
 
@@ -691,6 +700,11 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 	if (dpy->backing_store != NotUseful) {
 		a.backing_store = WhenMapped;
 		v |= CWBackingStore;
+	}
+
+	if (transient) {
+		a.override_redirect = True;
+		v |= CWOverrideRedirect;
 	}
 
 	/*
@@ -709,6 +723,11 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 	    0, CopyFromParent, InputOutput, CopyFromParent,
 	    v, &a);
 
+	if (transient) {
+		assert(parent != NULL);
+		XSetTransientForHint(DPY(dpy), widget->window, parent->window);
+	}
+
 	XStoreName(DPY(dpy), widget->window, name);
 
 	if (widget->event_mask & StructureNotifyMask)
@@ -717,7 +736,7 @@ _widget_create(int windowless, unsigned long bgcolor, const char *name,
 		add_keypress_handler(widget->window, widget_keypress, widget);
 	if (widget->event_mask & ButtonPressMask)
 		add_button_handler(widget->window, widget_mousepress, widget);
-	if (widget->event_mask & ButtonMotionMask)
+	if (widget->event_mask & Button1MotionMask)
 		add_motion_handler(widget->window, widget_motion, widget);
 
 	widget_ensure_focus(widget);

@@ -63,7 +63,7 @@ button_mousepress(struct widget *widget, XButtonEvent *xbutton, void *udata)
 {
 	struct button *button = udata;
 
-	if (xbutton->type != ButtonRelease)
+	if (xbutton->type != ButtonRelease && !button->act_on_release)
 		return 0;
 
 	button->callback(button, button->callback_udata);

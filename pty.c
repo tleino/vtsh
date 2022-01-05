@@ -58,9 +58,9 @@ static int	pty_find_slave(struct pty *, struct pty *);
 static void	pty_remove_slave(struct pty *, struct pty *);
 
 static void	pty_file_updated(int, int, int, int, BufferUpdate, void *);
-static void	pty_exec_handler(const char *, void *);
+static void	pty_exec_handler(const char *, int, int, void *);
 
-static void	pty_action(struct pty *, PtyAction, const char *);
+static void	pty_action(struct pty *, PtyAction, const char *, int, int);
 
 static void	pty_close_button(struct button *, void *);
 static void	pty_hide_button(struct button *, void *);
@@ -131,7 +131,7 @@ pty_close_button(struct button *button, void *udata)
 {
 	struct pty *pty = udata;
 
-	pty_action(pty, PtyActionClose, "");
+	pty_action(pty, PtyActionClose, "", 0, 0);
 }
 
 static void
@@ -139,16 +139,16 @@ pty_hide_button(struct button *button, void *udata)
 {
 	struct pty *pty = udata;
 
-	pty_action(pty, PtyActionToggleHide, "");
+	pty_action(pty, PtyActionToggleHide, "", 0, 0);
 }
 
 static void
-pty_action(struct pty *pty, PtyAction action, const char *s)
+pty_action(struct pty *pty, PtyAction action, const char *s, int x, int y)
 {
 	if (pty->ptyaction == NULL)
 		return;
 
-	pty->ptyaction(pty, action, s, pty->ptyaction_udata);
+	pty->ptyaction(pty, action, s, x, y, pty->ptyaction_udata);
 }
 
 void
@@ -309,11 +309,11 @@ pty_save(struct pty *pty)
 }
 
 static void
-pty_exec_handler(const char *s, void *udata)
+pty_exec_handler(const char *s, int x, int y, void *udata)
 {
 	struct pty *pty = udata;
 
-	pty_action(pty, PtyActionOpen, s);
+	pty_action(pty, PtyActionOpen, s, x, y);
 }
 
 void

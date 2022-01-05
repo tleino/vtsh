@@ -27,4 +27,6 @@ void	 remove_event_source(int);
 void	 remove_idle_handler(IdleHandler, void *);
 void	 run_event_loop(void);
 
+void	 event_dispatch_xevents(int);
+
 #endif

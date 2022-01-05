@@ -119,6 +119,23 @@ remove_event_source(int fd)
 }
 
 void
+event_dispatch_xevents(int queued)
+{
+	size_t i;
+
+	while (!queued || have_xevents()) {
+		i = 0;
+		sources[i].handler(sources[i].fd, sources[i].udata);
+
+		for (i = 0; i < n_idles; i++)
+			idles[i].handler(idles[i].udata);
+
+		if (!queued)
+			break;
+	}	
+}
+
+void
 run_event_loop()
 {
 	fd_set rfds;
@@ -141,12 +158,7 @@ run_event_loop()
 	 * caused by Syncs or Flushes elsewhere. So, if we have any,
 	 * we need to proceed them before select().
 	 */
-	while (have_xevents()) {
-		sources[0].handler(sources[i].fd, sources[i].udata);
-
-		for (i = 0; i < n_idles; i++)
-			idles[i].handler(idles[i].udata);
-	}
+	event_dispatch_xevents(1);
 
 	nready = select(maxfd + 1, &rfds, NULL, NULL, NULL);
 	if (nready == -1 || nready == 0)

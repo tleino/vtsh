@@ -679,7 +679,6 @@ editor_mousepress(struct widget *widget, XButtonEvent *e, void *udata)
 #endif
 		e->x += editor->begin_offset;
 		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
-
 		offset = (size_t) col;
 		p = buffer_word_at(editor->buffer, row, &offset, &sz);
 		if (p != NULL) {
@@ -687,7 +686,9 @@ editor_mousepress(struct widget *widget, XButtonEvent *e, void *udata)
 			if (q != NULL && editor->exec) {
 				memcpy(q, p, sz);
 				q[sz] = '\0';
-				editor->exec(q, editor->exec_udata);
+				editor->exec(q, e->x_root, e->y_root,
+				    editor->exec_udata);
+
 			}
 			if (q != NULL)
 				free(q);

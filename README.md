@@ -179,7 +179,7 @@ Open a file:
 ## TODO
 
 * Add more standard features like more Emacs bindings to the editor
-  (what is missing is like copy/paste, etc.).
+  (most essential features are implemented)
 * Bring the features from [iosplit](https://github.com/tleino/iosplit)
   to the editor such as overwriting previous command's output in an
   interactive session and launching new commands from a previous
@@ -232,7 +232,7 @@ and characters are interpreted as expected.
 * **Button 1** Move the cursor and/or deselect text (a.k.a. clear the mark).
 * **Button 1 with motion** Select text (a.k.a. set the mark) and then move
 the cursor.
-* **Button 2** Paste text (not yet implemented).
+* **Button 2** Paste text.
 * **Button 3** Execute action from a context menu for a word under cursor,
 or the whole line if the cursor is at or beyond EOL.
 * **Scroll wheel** Scroll.
@@ -268,11 +268,21 @@ should feel at home.
 * **Ctrl+o** Open line.
 * **Backspace** Delete character on the left.
 * **Ctrl+x Ctrl+s** Save file.
-* **Ctrl+x g** Go to line number.
-* **Ctrl+space** Begin selection (a.k.a. set mark).
-* **Ctrl+x Ctrl+g** Cancel prompt / action / clear selection.
-* **Ctrl+g** Cancel prompt / action / clear selection.
+
+#### Search
+
 * **Ctrl+s/r** Search forward/backward.
+* **Ctrl+x g** Go to line number.
+* **Ctrl+x Ctrl+g** Cancel action.
+* **Ctrl+g** Cancel action.
+
+#### Cut/paste and selections
+
+* **Ctrl+space** Begin selection (a.k.a. set mark).
+* **Ctrl+g** Clear selection.
+* **Ctrl+w** Cut: Kill selected region.
+* **Ctrl+y** Paste: Yank killed/copied region back.
+* **Button 2** Copy/Paste: Copy marked region to mouse pointer location.
 
 ### Misc
 * **Alt+n** Open new window.

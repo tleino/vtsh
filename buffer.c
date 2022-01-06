@@ -18,6 +18,7 @@
 #include "buffer.h"
 #include "util.h"
 #include "utf8.h"
+#include "config.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -50,6 +51,10 @@ struct buffer {
 
 	int has_mark;
 	struct cursor mark;
+
+	char *kill;
+	size_t kill_used;
+	size_t kill_size;
 };
 
 static int	 buffer_insert_row(struct buffer *, int);
@@ -110,6 +115,122 @@ buffer_is_marked(struct buffer *buffer, size_t row, size_t offset,
 		return 1;
 	else
 		return 0;
+}
+
+/*
+ * -1 less than
+ * 0 equal
+ * 1 greater than
+ */
+static int
+buffer_cmp_cursor(struct buffer *buffer, struct cursor *a, struct cursor *b)
+{
+	if (a->row < b->row)
+		return -1;
+	else if (a->row > b->row)
+		return 1;
+
+	if (a->offset < b->offset)
+		return -1;
+	else if (a->offset > b->offset)
+		return 1;
+
+	return 0;
+}
+
+static void
+buffer_clear_kill(struct buffer *buffer)
+{
+	if (buffer->kill == NULL)
+		return;
+
+	free(buffer->kill);
+	buffer->kill = 0;
+	buffer->kill_used = 0;
+	buffer->kill_size = 0;
+}
+
+static void
+buffer_insert_kill(struct buffer *buffer, const char *s, size_t sz)
+{
+	void *tmp;
+	size_t alloc_sz;
+
+	while (sz > 0) {
+		if (buffer->kill_used == buffer->kill_size) {
+			alloc_sz = buffer->kill_size + KILL_BUFFER_CHUNK;
+			tmp = realloc(buffer->kill, alloc_sz);
+			if (tmp == NULL) {
+				warn("%zu bytes for kill buffer", alloc_sz);
+				buffer_clear_kill(buffer);
+				return;
+			}
+			buffer->kill = tmp;
+			buffer->kill_size = alloc_sz;
+		}
+		buffer->kill[buffer->kill_used++] = *s++;
+		sz--;
+	}
+}
+
+void
+buffer_yank(struct buffer *buffer, struct cursor *cursor)
+{
+	if (buffer->kill == NULL)
+		return;
+
+	buffer_insert(cursor, buffer->kill, buffer->kill_used);
+}
+
+static void
+_kill_region(struct buffer *buffer, struct cursor *cursor, int copy_only)
+{
+	struct row *rp;
+	int i;
+	size_t offset, row, eol;
+
+	if (!buffer->has_mark)
+		return;
+
+	if (buffer_cmp_cursor(buffer, cursor, &buffer->mark) <= 0)
+		return;
+
+	buffer_clear_kill(buffer);
+
+	offset = buffer->mark.offset;
+	for (i = buffer->mark.row; i <= cursor->row; i++) {
+		rp = &buffer->rows[i];
+		eol = rp->bytes_used;
+		if (i == cursor->row)
+			eol = cursor->offset;
+		buffer_insert_kill(buffer, &rp->bytes[offset], eol-offset);
+		if (eol == rp->bytes_used && i+1 < buffer->n_rows &&
+		    i != cursor->row)
+			buffer_insert_kill(buffer, "\n", 1);
+		offset = 0;
+	}
+
+	if (copy_only)
+		return;
+
+	row = buffer->mark.row;
+	offset = buffer->mark.offset;
+	buffer_clear_mark(buffer, cursor->row);
+
+	while (cursor->row > row || cursor->offset > offset)
+		buffer_erase(buffer, cursor);	
+}
+
+void
+buffer_kill_region(struct buffer *buffer, struct cursor *cursor)
+{
+	_kill_region(buffer, cursor, 0);
+}
+
+void
+buffer_copy_region(struct buffer *buffer, struct cursor *cursor)
+{
+	_kill_region(buffer, cursor, 1);
 }
 
 void
@@ -403,6 +524,7 @@ buffer_clear(struct buffer *buffer)
 	buffer->max_rows = 0;
 
 	buffer_clear_mark(buffer, 0);
+	buffer_clear_kill(buffer);
 }
 
 void

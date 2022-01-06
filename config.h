@@ -61,4 +61,10 @@
  */
 #define ALLOC_CHUNK 80
 
+/*
+ * KILL_BUFFER_CHUNK:
+ *   How much bytes to allocate for kill buffer chunks.
+ */
+#define KILL_BUFFER_CHUNK 4096
+
 #endif

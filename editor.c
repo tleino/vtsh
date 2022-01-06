@@ -714,6 +714,19 @@ editor_mousepress(struct widget *widget, XButtonEvent *e, void *udata)
 		buffer_set_cursor(editor->buffer, editor->cursor, row, col);
 		editor_draw_cursor(editor, editor->cursor);
 		return 1;
+	case 2:
+		buffer_copy_region(editor->buffer, editor->cursor);
+
+#ifdef WANT_LINE_NUMBERS
+		e->x -= 100;
+#endif
+		e->x += editor->begin_offset;
+		buffer_clear_mark(editor->buffer, editor->cursor->row);
+		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
+		buffer_set_cursor(editor->buffer, editor->cursor, row, col);
+
+		buffer_yank(editor->buffer, editor->cursor);
+		return 1;
 	case 3:
 #ifdef WANT_LINE_NUMBERS
 		e->x -= 100;
@@ -804,6 +817,12 @@ editor_keypress(XKeyEvent *e, void *udata)
 		case XK_space:
 			buffer_set_mark(vc->buffer, vc->cursor->row,
 			    vc->cursor->offset);
+			return 1;
+		case XK_w:
+			buffer_kill_region(vc->buffer, vc->cursor);
+			return 1;
+		case XK_y:
+			buffer_yank(vc->buffer, vc->cursor);
 			return 1;
 		case XK_g:
 			vc->x_on = 0;

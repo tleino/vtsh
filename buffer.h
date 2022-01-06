@@ -70,6 +70,10 @@ int		 buffer_is_marked(struct buffer *, size_t, size_t, size_t,
 		    size_t);
 int		 buffer_has_mark(struct buffer *);
 
+void		 buffer_kill_region(struct buffer *, struct cursor *);
+void		 buffer_copy_region(struct buffer *, struct cursor *);
+void		 buffer_yank(struct buffer *, struct cursor *);
+
 const char	*buffer_word_at(struct buffer *, size_t, size_t *, size_t *);
 
 void		 buffer_update_cursor(struct buffer *, struct cursor *,

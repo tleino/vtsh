@@ -70,12 +70,10 @@ buffer_set_mark(struct buffer *buffer, size_t row, size_t offset)
 {
 	struct row *rp;
 
-	assert(row < buffer->n_rows);
 	if (row >= buffer->n_rows)
 		return;
 
 	rp = &buffer->rows[row];
-	assert(offset < rp->bytes_used);
 	if (offset >= rp->bytes_used)
 		return;
 

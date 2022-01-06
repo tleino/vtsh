@@ -47,6 +47,9 @@ struct buffer {
 	struct buffer_listener *listeners;
 	size_t n_listeners;
 	size_t max_listeners;
+
+	int has_mark;
+	struct cursor mark;
 };
 
 static int	 buffer_insert_row(struct buffer *, int);
@@ -56,10 +59,71 @@ static char	*row_at(struct row *, size_t *, size_t *);
 static void	 buffer_erase_eol_at(struct buffer *, size_t, size_t);
 static void	 broadcast_update(struct buffer *, int, int, int, int,
 		    BufferUpdate);
+static void	 buffer_update(struct buffer *, int, int);
 
 #if 0
 static void	 dump_buffer(struct buffer *buffer);
 #endif
+
+void
+buffer_set_mark(struct buffer *buffer, size_t row, size_t offset)
+{
+	struct row *rp;
+
+	assert(row < buffer->n_rows);
+	if (row >= buffer->n_rows)
+		return;
+
+	rp = &buffer->rows[row];
+	assert(offset < rp->bytes_used);
+	if (offset >= rp->bytes_used)
+		return;
+
+	buffer_clear_mark(buffer, row);
+	buffer->has_mark = 1;
+	buffer->mark.row = row;
+	buffer->mark.offset = offset;
+}
+
+int
+buffer_has_mark(struct buffer *buffer)
+{
+	return buffer->has_mark;
+}
+
+int
+buffer_is_marked(struct buffer *buffer, size_t row, size_t offset,
+    size_t dot_row, size_t dot_offset)
+{
+	if (buffer->has_mark == 0)
+		return 0;
+	else if (buffer->mark.row > row)
+		return 0;
+	else if (buffer->mark.row == row && dot_row > row &&
+	    offset >= buffer->mark.offset)
+		return 1;
+	else if (buffer->mark.row < row && dot_row > row)
+		return 1;
+	else if (buffer->mark.row < row && dot_row == row &&
+	    offset < dot_offset)
+		return 1;
+	else if (buffer->mark.row == row && dot_row == row &&
+	    offset >= buffer->mark.offset && offset < dot_offset)
+		return 1;
+	else
+		return 0;
+}
+
+void
+buffer_clear_mark(struct buffer *buffer, size_t current_row)
+{
+	if (!buffer->has_mark)
+		return;
+
+	buffer->has_mark = 0;
+	buffer_update(buffer, buffer->mark.row, current_row);
+	memset(&buffer->mark, '\0', sizeof(struct cursor));
+}
 
 int
 buffer_row_uflags(struct buffer *buffer, int row)
@@ -339,6 +403,8 @@ buffer_clear(struct buffer *buffer)
 		buffer->rows = NULL;
 	}
 	buffer->max_rows = 0;
+
+	buffer_clear_mark(buffer, 0);
 }
 
 void
@@ -450,6 +516,21 @@ buffer_insert_row(struct buffer *buffer, int row)
 	return 0;
 }
 
+static void
+buffer_update(struct buffer *buffer, int from, int to)
+{
+	int i;
+
+	if (from < to)
+		for (i = to; i >= from; i--)
+			broadcast_update(buffer, i, 0, i, 0,
+			    BUFFER_UPDATE_LINE);
+	else
+		for (i = from; i >= to; i--)
+			broadcast_update(buffer, i, 0, i, 0,
+			    BUFFER_UPDATE_LINE);
+}
+
 void
 buffer_set_cursor(struct buffer *buffer, struct cursor *cursor, int row,
     int offset)
@@ -471,11 +552,7 @@ buffer_set_cursor(struct buffer *buffer, struct cursor *cursor, int row,
 	cursor->row = row;
 	cursor->offset = offset;
 
-	broadcast_update(buffer, old_row, old_col, old_row, old_col,
-	    BUFFER_UPDATE_LINE);
-
-	broadcast_update(buffer, cursor->row, cursor->col, cursor->row,
-	    cursor->col, BUFFER_UPDATE_LINE);
+	buffer_update(buffer, old_row, cursor->row);
 }
 
 /*
@@ -541,11 +618,7 @@ buffer_update_cursor(struct buffer *buffer, struct cursor *cursor,
 		}
 	}
 
-	if (old_row != cursor->row)
-		broadcast_update(buffer, old_row, old_col, old_row, old_col,
-		    BUFFER_UPDATE_LINE);
-	broadcast_update(buffer, cursor->row, cursor->col, cursor->row,
-	    cursor->col, BUFFER_UPDATE_LINE);
+	buffer_update(buffer, old_row, cursor->row);
 }
 
 static int
@@ -608,6 +681,7 @@ buffer_insert_char(struct buffer *buffer, size_t row, size_t *offset,
     const char *s, size_t len)
 {
 	struct row *rowptr;
+	size_t o_offset;
 
 	if (buffer->n_rows == 0)
 		if (buffer_insert_row(buffer, 0) == -1)
@@ -621,10 +695,15 @@ buffer_insert_char(struct buffer *buffer, size_t row, size_t *offset,
 	if (buffer_make_space(rowptr, *offset, len) == -1)
 		return -1;
 
+	o_offset = *offset;
 	while (len > 0 && len--) {
 		rowptr->bytes[*offset] = *s++;
 		(*offset)++;
 	}
+
+	if (buffer->has_mark && buffer->mark.row == row)
+		if (o_offset < buffer->mark.offset)
+			buffer_update_cursor(buffer, &buffer->mark, 0, 1);
 
 	return 0;
 }
@@ -676,6 +755,8 @@ buffer_erase_eol_at(struct buffer *buffer, size_t row, size_t offset)
 	if (buffer->n_rows == 0)
 		return;
 
+	/* TODO: Use delete_char or handle mark updates here also */
+
 	rowptr = &buffer->rows[row];
 	assert(rowptr->bytes_used >= offset);
 	len = rowptr->bytes_used - offset;
@@ -694,7 +775,7 @@ buffer_erase_eol(struct buffer *buffer, struct cursor *cursor)
 void
 buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
 {
-	size_t eol, offset, sz;
+	size_t eol, offset, sz, m_offset, had_mark;
 	const char *p;
 	struct row *rowptr;
 
@@ -707,13 +788,23 @@ buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
 		 * Join head of the line below.
 		 */
 		if (cursor->row+1 < buffer->n_rows) {
-			offset = 0;
 			eol = buffer->rows[cursor->row].bytes_used;
+			if (buffer->has_mark &&
+			    buffer->mark.row == cursor->row+1) {
+				had_mark = 1;
+				m_offset = buffer->mark.offset + eol;
+				buffer_set_cursor(buffer, &buffer->mark,
+				    cursor->row, 0);
+			}
+			offset = 0;
 			while ((p = row_at(&buffer->rows[cursor->row+1],
 			    &offset, &sz)) != NULL)
 				if (buffer_insert_char(buffer, cursor->row,
 				    &eol, p, sz) == -1)
 					return;
+			if (had_mark)
+				buffer_set_cursor(buffer, &buffer->mark,
+				    cursor->row, m_offset);
 		}
 
 		if (cursor->row+1 < buffer->n_rows)
@@ -723,8 +814,17 @@ buffer_delete_char(struct buffer *buffer, struct cursor *cursor)
 
 	if (cursor->row >= buffer->n_rows)
 		return;
-	rowptr = &buffer->rows[cursor->row];
+
 	offset = cursor->offset;
+	if (buffer->has_mark && buffer->mark.row == cursor->row) {
+		if (offset < buffer->mark.offset) {
+			buffer_update_cursor(buffer, &buffer->mark, 0, -1);
+		} else if (offset == buffer->mark.offset) {
+			buffer_clear_mark(buffer, cursor->row);
+		}
+	}
+
+	rowptr = &buffer->rows[cursor->row];
 	p = row_at(rowptr, &offset, &sz);
 	if (p != NULL)
 		if (buffer_shrink_space(rowptr, cursor->offset, sz) == -1)

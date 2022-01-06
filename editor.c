@@ -666,6 +666,10 @@ editor_motion(XMotionEvent *e, void *udata)
 {
 	struct editor *editor = udata;
 	int row, offset;
+	int old_row, old_offset;
+
+	old_row = editor->cursor->row;
+	old_offset = editor->cursor->offset;
 
 	editor_draw_cursor(editor, editor->cursor);
 #ifdef WANT_LINE_NUMBERS
@@ -673,7 +677,13 @@ editor_motion(XMotionEvent *e, void *udata)
 #endif
 	e->x += editor->begin_offset;
 	editor_find_cursor_pos(editor, e->x, e->y, &row, &offset);
+
+	if ((old_row != row || old_offset != offset) &&
+	    !buffer_has_mark(editor->buffer))
+		buffer_set_mark(editor->buffer, old_row, old_offset);
+
 	buffer_set_cursor(editor->buffer, editor->cursor, row, offset);
+
 	editor_scroll_into_view(editor, editor->cursor->row,
 	    editor->cursor->offset);
 	return 1;
@@ -699,6 +709,7 @@ editor_mousepress(struct widget *widget, XButtonEvent *e, void *udata)
 		e->x -= 100;
 #endif
 		e->x += editor->begin_offset;
+		buffer_clear_mark(editor->buffer, editor->cursor->row);
 		editor_find_cursor_pos(editor, e->x, e->y, &row, &col);
 		buffer_set_cursor(editor->buffer, editor->cursor, row, col);
 		editor_draw_cursor(editor, editor->cursor);
@@ -763,6 +774,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 				widget_hide(WIDGET(vc));
 				widget_focus(WIDGET(vc->prompt_parent));
 			}
+			buffer_clear_mark(vc->buffer, vc->cursor->row);
 			return 1;
 		}
 	} else if (e->state == 0 && vc->x_on) {
@@ -774,6 +786,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 				widget_show(WIDGET(vc->prompt));
 				widget_focus(WIDGET(vc->prompt));
 			}
+			buffer_clear_mark(vc->buffer, vc->cursor->row);
 			return 1;
 		}
 	} else if (sym == XK_x && e->state & ControlMask) {
@@ -788,6 +801,10 @@ editor_keypress(XKeyEvent *e, void *udata)
 
 	if (e->state & ControlMask) {
 		switch (sym) {
+		case XK_space:
+			buffer_set_mark(vc->buffer, vc->cursor->row,
+			    vc->cursor->offset);
+			return 1;
 		case XK_g:
 			vc->x_on = 0;
 			if (vc->prompt_parent != NULL) {
@@ -795,6 +812,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 				widget_hide(WIDGET(vc));
 				widget_focus(WIDGET(vc->prompt_parent));
 			}
+			buffer_clear_mark(vc->buffer, vc->cursor->row);
 			return 1;
 		case XK_s:
 			if (vc->prompt != NULL) {
@@ -938,6 +956,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 		if (row < 0)
 			row = 0;
 		col = editor_pos_from_offset(vc, row, offset);
+		editor_scroll_into_view(vc, row, col);
 		buffer_set_cursor(vc->buffer, vc->cursor, row, col);
 		break;
 	case XK_Down:
@@ -956,6 +975,7 @@ editor_keypress(XKeyEvent *e, void *udata)
 				row = 0;
 		}
 		col = editor_pos_from_offset(vc, row, offset);
+		editor_scroll_into_view(vc, row, col);
 		buffer_set_cursor(vc->buffer, vc->cursor, row, col);
 		break;
 	case XK_Page_Up:
@@ -982,10 +1002,11 @@ editor_keypress(XKeyEvent *e, void *udata)
 	switch (sym) {
 	case XK_Left:
 	case XK_Right:
-	case XK_Up:
-	case XK_Down:
 		editor_scroll_into_view(vc, vc->cursor->row,
 		    vc->cursor->offset);
+		return 1;
+	case XK_Up:
+	case XK_Down:
 		return 1;
 	}
 
@@ -1139,6 +1160,10 @@ editor_draw_line(struct editor *editor, size_t *x, int *sx, size_t row,
 		if (editor->focused && row == editor->cursor->row &&
 		    j+orig_offset == editor->cursor->offset) {
 			want_bgcolor = COLOR_TEXT_CURSOR;
+		} else if (buffer_is_marked(
+		    editor->buffer, row, j+orig_offset, editor->cursor->row,
+		    editor->cursor->offset)) {
+			want_bgcolor = COLOR_TEXT_SELECTION;
 		} else if (dst[j] != '\t' && iscntrl((unsigned char) dst[j])) {
 			want_bgcolor = COLOR_TEXT_CTRL;
 			step_ctrl = 1;

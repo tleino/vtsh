@@ -1,6 +1,7 @@
 TEXT_BG           #f5efe0
 TEXT_FG           black
 TEXT_CURSOR       red
+TEXT_SELECTION    orange
 TEXT_OUTPUT_CURSOR green
 TEXT_CTRL         purple
 TEXT_LINENO       gray

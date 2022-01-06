@@ -205,6 +205,13 @@ has a two-level focus system:
 Toggling between the level is possible using *Alt+Enter*, or
 alternatively *Esc*.
 
+## Noteworthy deviations from Emacs
+
+* Mark is not cleared if buffer is modified while the mark is active,
+instead the mark follows with the modifications. For clearing the mark,
+use **Ctrl+g** or **Button 1**. This is useful because in *vtsh* buffers
+might be updated on the fly e.g. if new content arrives.
+
 ## Using with mouse
 
 * **Button 1** Select text (not yet implemented - only moves cursor at
@@ -246,8 +253,9 @@ should feel at home.
 * **Backspace** Delete character on the left.
 * **Ctrl+x Ctrl+s** Save file.
 * **Ctrl+x g** Go to line number.
-* **Ctrl+x Ctrl+g** Cancel prompt / action.
-* **Ctrl+g** Cancel prompt / action.
+* **Ctrl+space** Begin selection (a.k.a. set mark).
+* **Ctrl+x Ctrl+g** Cancel prompt / action / clear selection.
+* **Ctrl+g** Cancel prompt / action / clear selection.
 * **Ctrl+s/r** Search forward/backward.
 
 ### Misc

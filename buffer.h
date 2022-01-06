@@ -64,6 +64,12 @@ void		 buffer_delete_char(struct buffer *, struct cursor *);
 void		 buffer_erase_eol(struct buffer *, struct cursor *);
 void		 buffer_remove_row(struct buffer *, int);
 
+void		 buffer_set_mark(struct buffer *, size_t, size_t);
+void		 buffer_clear_mark(struct buffer *, size_t);
+int		 buffer_is_marked(struct buffer *, size_t, size_t, size_t,
+		    size_t);
+int		 buffer_has_mark(struct buffer *);
+
 const char	*buffer_word_at(struct buffer *, size_t, size_t *, size_t *);
 
 void		 buffer_update_cursor(struct buffer *, struct cursor *,

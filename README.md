@@ -336,19 +336,40 @@ article written by Jamm!n.
 
 ## See also
 
-* vtsh(1) is similar to the same author's cocovt(1) but can be used
-standalone without support from the special cocowm(1) window manager.
-It is also similar to iosplit(1) but that one relies on ncurses(3).
-    * See [cocowm](https://github.com/tleino/cocowm).
-    * See [cocovt](https://github.com/tleino/cocovt).
-    * See [iosplit](https://github.com/tleino/iosplit).
-* vtsh(1) is very similar to acme(1), except that vtsh(1)
-    * Supports interactive sessions well, so well that it could be even used
-      as a client to text-based Multi User Dungeons (in acme(1) the dislike
-      for interactive sessions is more visible);
-    * Relies on window manager for getting multiple columns.
-    * Can be used without mouse.
-* xd(1) is a proof-of-concept [edbrowse](https://github.com/CMB/edbrowse)-like
-implementation for using e.g. Gemini "Small Internet" protocol that could
-work very well with *vtsh*
-    * See [xd](https://github.com/tleino/xd).
+* *vtsh* can be used with any window manager, but the author uses it
+with [mxswm](https://github.com/tleino/mxswm). When *vtsh* is used in
+combination with [mxswm](https://github.com/tleino/mxswm), the experience
+can be very acme-like, but with an important twist, of course.
+    * See also [cocowm](https://github.com/tleino/cocowm) window manager,
+      which is inspired by similar ideas.
+      Under [cocowm](https://github.com/tleino/cocowm) *vtsh* could be running
+      in a one session per window mode and the window manager would take
+      care of managing multiple windows in a very acme-like way.
+      Using *vtsh* with [cocowm](https://github.com/tleino/cocowm)
+      instead of [mxswm](https://github.com/tleino/mxswm) is superior in
+      a philosophical sense, but optimizing *vtsh* for
+      [cocowm](https://github.com/tleino/cocowm) and improving the window
+      manager itself needs more work.
+    * Of course you can use *vtsh* with any window manager.
+* *vtsh* is acme-like, i.e. see [acme](http://acme.cat-v.org/).
+    * Unlike *acme*, *vtsh* is written for X11 and Unix/Linux instead of
+      Plan9 and relies on a *window manager* which means the user experience
+      can be customized by free selection of the window manager.
+    * Unlike *acme*, *vtsh* is written foremost as a system for interacting
+      with commands / shell processes, as in Unix/Linux world we don't have
+      the Plan9 luxury of "totally everything is a file", so it is
+      expected *vtsh* will be better for interacting with *interactive
+      sessions* like *ssh*, *telnet* or even *ed* editor sessions.
+    * Unlike *acme*, *vtsh* can be used without a mouse from the
+      keyboard with Emacs-like bindings. Also, when *vtsh* is used
+      with a mouse, the interactions are more similar to other established
+      programs.
+* *vtsh* is similar to [iosplit](https://github.com/tleino/iosplit) in the
+  way of how the interactive shell session is reimagined.
+* *vtsh* is also similar to the original *ed* editor, as well as
+  [edbrowse](https://github.com/CMB/edbrowse), in the way how editor, command
+  output and navigation happens in an integrated way. As a philosophical
+  target, it should be possible to use these, as well as programs like
+  command line mail readers such as *s-nail* and the original *mail* and
+  programs like [xd](https://github.com/tleino/xd) through *vtsh* in an
+  optimal way.

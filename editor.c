@@ -1164,6 +1164,10 @@ editor_draw_line(struct editor *editor, size_t *x, int *sx, size_t row,
 		    editor->buffer, row, j+orig_offset, editor->cursor->row,
 		    editor->cursor->offset)) {
 			want_bgcolor = COLOR_TEXT_SELECTION;
+		} else if (editor->ocursor != NULL &&
+		    editor->focused && row == editor->ocursor->row &&
+		    j+orig_offset == editor->ocursor->offset) {
+			want_bgcolor = COLOR_TEXT_OUTPUT_CURSOR;
 		} else if (dst[j] != '\t' && iscntrl((unsigned char) dst[j])) {
 			want_bgcolor = COLOR_TEXT_CTRL;
 			step_ctrl = 1;

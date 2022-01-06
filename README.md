@@ -179,7 +179,7 @@ Open a file:
 ## TODO
 
 * Add more standard features like more Emacs bindings to the editor
-  (what is missing is like copy/paste, search, etc.).
+  (what is missing is like copy/paste, etc.).
 * Bring the features from [iosplit](https://github.com/tleino/iosplit)
   to the editor such as overwriting previous command's output in an
   interactive session and launching new commands from a previous
@@ -190,9 +190,13 @@ Open a file:
   underlying file are not ignored.
 * Distinguish slave buffers from non-slave buffers.
 
+See also [vtsh issues](https://github.com/tleino/vtsh/issues).
+
 ## Known issues
 
 * The "unsaved buffer" state is set even if only cursor is moved.
+
+See also [vtsh issues](https://github.com/tleino/vtsh/issues).
 
 ## Unique keyboard focus system
 
@@ -205,21 +209,33 @@ has a two-level focus system:
 Toggling between the level is possible using *Alt+Enter*, or
 alternatively *Esc*.
 
-## Noteworthy deviations from Emacs
+## Noteworthy deviations
 
-* Mark is not cleared if buffer is modified while the mark is active,
+### From Emacs-like editors
+
+* *Mark is not cleared if buffer is modified* while the mark is active,
 instead the mark follows with the modifications. For clearing the mark,
 use **Ctrl+g** or **Button 1**. This is useful because in *vtsh* buffers
-might be updated on the fly e.g. if new content arrives.
+might be updated on the fly e.g. if new content arrives from the shell
+process.
+
+### From normal virtual terminals
+
+* The usual VTxxx/ANSI control sequences and ASCII control characters other
+than TAB and NL *are not interpreted*. This is
+useful because the buffers are editable. However, in the future it might
+be possible that a separate "view-only" mode is added where these sequences
+and characters are interpreted as expected.
 
 ## Using with mouse
 
-* **Button 1** Select text (not yet implemented - only moves cursor at
-  the moment)
-* **Button 2** Paste text (not yet implemented)
-* **Button 3** Execute text (executes whole line, later could execute word
-  or whole line and open context sensitive menu for it)
-* **Scroll wheel** Scroll
+* **Button 1** Move the cursor and/or deselect text (a.k.a. clear the mark).
+* **Button 1 with motion** Select text (a.k.a. set the mark) and then move
+the cursor.
+* **Button 2** Paste text (not yet implemented).
+* **Button 3** Execute action from a context menu for a word under cursor,
+or the whole line if the cursor is at or beyond EOL.
+* **Scroll wheel** Scroll.
 
 ## Default key bindings
 

@@ -1,6 +1,6 @@
 /*
  * vtsh - A mashup of virtual terminal and shell
- * Copyright (c) 2021, Tommi Leino <namhas@gmail.com>
+ * Copyright (c) 2021-2022, Tommi Leino <namhas@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,8 +20,11 @@
 
 struct ptylist;
 struct widget;
+struct pty;
 
 struct ptylist	*ptylist_create(const char *, struct widget *);
+struct pty	*ptylist_find_focus(struct ptylist *);
+void		 ptylist_toggle_focus_level(struct ptylist *);
 void		 ptylist_free(struct ptylist *);
 void		 ptylist_free_all(void);
 

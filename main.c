@@ -1,6 +1,6 @@
 /*
  * vtsh - A mashup of virtual terminal and shell
- * Copyright (c) 2021, Tommi Leino <namhas@gmail.com>
+ * Copyright (c) 2021-2022, Tommi Leino <namhas@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,10 +20,12 @@
 #include "event.h"
 #include "xevent.h"
 #include "font.h"
+#include "pty.h"
 
 #include <err.h>
 #include <stdlib.h>
 #include <locale.h>
+#include <string.h>
 
 #ifdef HAVE_PLEDGE
 #include <unistd.h>
@@ -37,6 +39,9 @@ main(int argc, char *argv[])
 {
 	struct ptylist *ptylist;
 	XEvent e;
+	char *s;
+	int i;
+	size_t sz, alloc;
 
 #ifdef HAVE_PLEDGE
 	if (pledge("stdio cpath rpath wpath tty unix inet proc exec", NULL)
@@ -70,6 +75,38 @@ main(int argc, char *argv[])
 	} while (e.type != MapNotify);
 
 	add_event_source(ConnectionNumber(DPY(dpy)), process_xevents, NULL);
+
+	s = NULL;
+	for (i = 1; i < argc; i++) {
+		if (i == 1) {
+			alloc = 256;
+			s = malloc(alloc);
+			if (s == NULL)
+				err(1, "malloc");
+			sz = 0;
+		}
+
+		if (argv[i] == NULL || argv[i][0] == '\0')
+			break;
+		if (sz + strlen(argv[i]) + 2 >= alloc) {
+			alloc += sz + strlen(argv[i]) + 2;
+			s = realloc(s, alloc);
+			if (s == NULL)
+				err(1, "realloc");
+		}
+		strcpy(&s[sz], argv[i]);
+		sz += strlen(argv[i]);
+		if (argc > 0 && i != argc-1)
+			s[sz++] = ' ';
+	}
+
+	if (s != NULL) {
+		run_event_loop();
+
+		pty_run_command(ptylist_find_focus(ptylist), s);
+		free(s);
+		ptylist_toggle_focus_level(ptylist);
+	}
 
 	running = 1;
 	while (running)

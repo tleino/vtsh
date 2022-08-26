@@ -1,6 +1,6 @@
 /*
  * vtsh - A mashup of virtual terminal and shell
- * Copyright (c) 2021, Tommi Leino <namhas@gmail.com>
+ * Copyright (c) 2021-2022, Tommi Leino <namhas@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -55,7 +55,6 @@ static int		 ptylist_keypress(XKeyEvent *, void *);
 static void		 ptylist_focus_change(int, void *);
 static struct pty	*ptylist_add_pty(struct ptylist *, struct pty *);
 static int		 ptylist_find_pty(struct ptylist *, struct widget *);
-static struct pty	*ptylist_find_focus(struct ptylist *);
 static void		 ptylist_destroy(void *);
 static void		 ptylist_create_new_window(void);
 static void		 ptylist_close_pty(struct ptylist *, struct pty *);
@@ -418,7 +417,7 @@ ptylist_find_pty(struct ptylist *ptylist, struct widget *widget)
 	return -1;
 }
 
-static struct pty *
+struct pty *
 ptylist_find_focus(struct ptylist *ptylist)
 {
 	struct widget *root, *ptywidget;
@@ -464,12 +463,24 @@ ptylist_create_new_window()
 	} while (e.type != MapNotify);
 }
 
+void
+ptylist_toggle_focus_level(struct ptylist *ptylist)
+{
+	struct widget *root;
+
+	root = widget_find_root(WIDGET(ptylist));
+	root->level ^= 1;
+	if (root->level == 0)
+		widget_focus_prev(root->focus, root->level);
+	else
+		widget_focus_next(root->focus, root->level);
+}
+
 static int
 ptylist_keypress(XKeyEvent *xkey, void *udata)
 {
 	struct ptylist *ptylist = udata;
 	KeySym sym;
-	struct widget *root;
 	int i;
 	struct pty *pty;
 	extern struct dpy *dpy;
@@ -519,12 +530,7 @@ ptylist_keypress(XKeyEvent *xkey, void *udata)
 		return 1;
 	case XK_Escape:
 	case XK_Return:
-		root = widget_find_root(WIDGET(ptylist));
-		root->level ^= 1;
-		if (root->level == 0)
-			widget_focus_prev(root->focus, root->level);
-		else
-			widget_focus_next(root->focus, root->level);
+		ptylist_toggle_focus_level(ptylist);
 		return 1;
 	case XK_BackSpace:
 		ptylist_close_pty(ptylist, NULL);
